@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from auth import authenticate_user, create_access_token
 from users import create_user_table, get_user_data
 import uvicorn
 
 app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 # Ensure DynamoDB table exists and seed users
 create_user_table()
