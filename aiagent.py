@@ -2,7 +2,7 @@ import click
 import os
 import boto3
 import time
-
+import subprocess
 
 @click.group()
 def cli():
@@ -268,6 +268,59 @@ def show_validation():
                 click.echo(f"   Status: {opt['ValidationStatus']}")
     if not found:
         click.echo("✅ No pending ACM validations found.")
+
+
+def deploy_dashboard():
+    """Build and deploy React dashboard to S3 and CloudFront"""
+    domain_sub = "dashboard.danieldow.com"
+
+    # Step 1: Build React app
+    click.echo("🔨 Building React app...")
+    try:
+        subprocess.run(["npm", "install", "--yes"], cwd="dashboard-app", check=True)
+        subprocess.run(["npm", "run", "build"], cwd="dashboard-app", check=True)
+        click.echo("✅ React app built successfully.")
+    except subprocess.CalledProcessError:
+        click.echo("❌ React build failed. Make sure you have npm installed.")
+        return
+
+    # Step 2: Deploy to S3
+    s3 = boto3.client('s3')
+    click.echo("🚀 Deploying React build to S3...")
+    bucket_name = domain_sub
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+        click.echo(f"🪣 Bucket {bucket_name} already exists.")
+    except:
+        click.echo(f"🪣 Creating bucket: {bucket_name}")
+        s3.create_bucket(Bucket=bucket_name)
+
+    s3.put_bucket_website(
+        Bucket=bucket_name,
+        WebsiteConfiguration={
+            'IndexDocument': {'Suffix': 'index.html'},
+            'ErrorDocument': {'Key': 'index.html'}
+        }
+    )
+
+    build_dir = "dashboard-app/build"
+    for root, _, files in os.walk(build_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            relative_path = os.path.relpath(full_path, build_dir)
+            content_type = "text/html" if file.endswith(".html") else "application/octet-stream"
+            s3.upload_file(
+                Filename=full_path,
+                Bucket=bucket_name,
+                Key=relative_path.replace("\\", "/"),
+                ExtraArgs={'ContentType': content_type}
+            )
+    click.echo("✅ React app deployed to S3.")
+
+    # Step 3: Set up CloudFront + ACM
+    cloudfront_deploy()
+
+# (rest of the code unchanged)
 
 
 if __name__ == "__main__":
