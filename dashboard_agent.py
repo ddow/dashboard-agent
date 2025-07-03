@@ -9,7 +9,7 @@ def cli():
     """AI Agent for Dashboard - Build, Deploy, Manage"""
     pass
 
-@cli.command()
+@cli.command("deploy_dashboard")
 def deploy_dashboard():
     """Build and deploy React dashboard to S3 and CloudFront"""
     domain_sub = "dashboard.danieldow.com"
@@ -63,7 +63,7 @@ def deploy_dashboard():
     # Step 3: Set up CloudFront + ACM
     cloudfront_deploy()
 
-@cli.command()
+@cli.command("cloudfront_deploy")
 def cloudfront_deploy():
     """Set up CloudFront + HTTPS for Dashboard"""
     domain_sub = "dashboard.danieldow.com"
