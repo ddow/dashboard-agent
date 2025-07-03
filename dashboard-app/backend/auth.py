@@ -7,7 +7,7 @@ SECRET_KEY = "your-super-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Create a password hashing context (works with bcrypt 4.x)
+# Create a password hashing context (compatible with bcrypt 4.x)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
