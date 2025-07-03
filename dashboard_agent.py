@@ -61,7 +61,7 @@ def deploy_dashboard():
     click.echo("✅ React app deployed to S3.")
 
     # Step 3: Set up CloudFront + ACM
-    cloudfront_deploy()
+    cloudfront_deploy.callback()
 
 @cli.command("cloudfront_deploy")
 def cloudfront_deploy():
