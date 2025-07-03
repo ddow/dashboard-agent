@@ -1,13 +1,14 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from users import get_user  # assumes you have get_user(email) in users.py
 
-# Secret key for JWT (in production use env var or AWS Secrets Manager)
+# Secret key for JWT (keep this safe in production)
 SECRET_KEY = "your-super-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Create a password hashing context (compatible with bcrypt 4.x)
+# CryptContext for bcrypt (bcrypt>=4.x compatible)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
@@ -17,6 +18,15 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against its hash."""
     return pwd_context.verify(plain_password, hashed_password)
+
+def authenticate_user(email: str, password: str):
+    """Check if user exists and password matches."""
+    user = get_user(email)
+    if not user:
+        return False
+    if not verify_password(password, user["password"]):
+        return False
+    return user
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """Create a JWT access token."""
