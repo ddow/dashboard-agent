@@ -19,3 +19,8 @@ fake_users_db = {
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+
+def get_user(email: str):
+    """Case-insensitive user lookup"""
+    email_lower = email.lower()
+    return fake_users_db.get(email_lower)
