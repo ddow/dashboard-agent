@@ -30,7 +30,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.get("/dashboard")
 def read_dashboard(token: str = Depends(oauth2_scheme)):
     payload = decode_access_token(token)
-    email = payload.get("sub")
+    email = payload.get("sub", "").lower()  # 👈 normalize to lowercase
+    print(f"Decoded email: {email}")
     if email == "strngr12@gmail.com":
         return {"user": email, "content": "Welcome Daniel"}
     elif email == "kristan.anderson@gmail.com":
