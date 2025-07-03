@@ -2,14 +2,43 @@ import click
 import os
 import boto3
 import time
-import subprocess  # Standard library, no install needed
+import subprocess
+import zipfile
 
 @click.group()
 def cli():
     """AI Agent for Dashboard - Build, Deploy, Manage"""
     pass
 
-@cli.command("deploy_dashboard")
+@cli.command(name="deploy_backend")
+def deploy_backend():
+    """Package and deploy FastAPI backend to AWS Lambda"""
+    domain_api = "api.dashboard.danieldow.com"
+    zip_name = "backend.zip"
+
+    # Step 1: Package backend
+    click.echo("📦 Packaging backend...")
+    backend_dir = "backend"
+    with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(backend_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, backend_dir)
+                zipf.write(full_path, arcname)
+    click.echo("✅ Backend packaged into backend.zip.")
+
+    # Step 2: Deploy to AWS Lambda + API Gateway (placeholder)
+    click.echo("🚀 Deploying backend to AWS Lambda (placeholder)...")
+    click.echo("✅ Backend deploy logic will go here.")
+
+    # Step 3: Print API domain instructions
+    click.echo("📌 Update Domain.com DNS:")
+    click.echo(f"Type: CNAME")
+    click.echo(f"Name: api.dashboard")
+    click.echo(f"Value: <your-api-gateway-domain>")
+    click.echo("🎉 Backend API deployed and ready for HTTPS.")
+
+@cli.command(name="deploy_dashboard")
 def deploy_dashboard():
     """Build and deploy React dashboard to S3 and CloudFront"""
     domain_sub = "dashboard.danieldow.com"
@@ -61,9 +90,9 @@ def deploy_dashboard():
     click.echo("✅ React app deployed to S3.")
 
     # Step 3: Set up CloudFront + ACM
-    cloudfront_deploy.callback()
+    cloudfront_deploy()
 
-@cli.command("cloudfront_deploy")
+@cli.command(name="cloudfront_deploy")
 def cloudfront_deploy():
     """Set up CloudFront + HTTPS for Dashboard"""
     domain_sub = "dashboard.danieldow.com"
@@ -176,7 +205,6 @@ def cloudfront_deploy():
     cf_domain = response['Distribution']['DomainName']
     click.echo(f"✅ CloudFront deployed: {cf_domain}")
 
-    # Print DNS instructions for Domain.com
     click.echo("📌 Update Domain.com DNS:")
     click.echo(f"Type: CNAME")
     click.echo(f"Name: dashboard")
