@@ -1,26 +1,28 @@
+import boto3
+from botocore.exceptions import ClientError
 from passlib.context import CryptContext
 
+# Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-fake_users_db = {
-    "strngr12@gmail.com": {
-        "username": "strngr12@gmail.com",
-        "full_name": "Daniel Dow",
-        "hashed_password": pwd_context.hash("Passw0rd!"),
-        "disabled": False,
-    },
-    "kristan.anderson@gmail.com": {
-        "username": "kristan.anderson@gmail.com",
-        "full_name": "Kristan Anderson",
-        "hashed_password": pwd_context.hash("Passw0rd!"),
-        "disabled": False,
-    }
-}
+# DynamoDB table name
+TABLE_NAME = "dashboard-users"
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+# DynamoDB client
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(TABLE_NAME)
+
 
 def get_user(email: str):
-    """Case-insensitive user lookup"""
-    email_lower = email.lower()
-    return fake_users_db.get(email_lower)
+    """Fetch user record from DynamoDB by email"""
+    try:
+        response = table.get_item(Key={"username": email.lower()})
+        return response.get("Item")
+    except ClientError as e:
+        print(f"DynamoDB error: {e.response['Error']['Message']}")
+        return None
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against hashed"""
+    return pwd_context.verify(plain_password, hashed_password)

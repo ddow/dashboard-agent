@@ -1,26 +1,8 @@
-const API_URL = "http://127.0.0.1:8000";
+import axios from "axios";
 
-export async function login(email, password) {
-  const response = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      username: email,
-      password: password
-    })
-  });
-  if (!response.ok) {
-    throw new Error("Login failed");
-  }
-  return response.json();
-}
+const api = axios.create({
+  baseURL: "http://127.0.0.1:8000", // 🔥 local FastAPI backend
+  timeout: 5000,
+});
 
-export async function fetchDashboard(token) {
-  const response = await fetch(`${API_URL}/dashboard`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!response.ok) {
-    throw new Error("Unauthorized");
-  }
-  return response.json();
-}
+export default api;

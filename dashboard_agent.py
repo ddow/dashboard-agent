@@ -3,42 +3,13 @@ import os
 import boto3
 import time
 import subprocess
-import zipfile
 
 @click.group()
 def cli():
     """AI Agent for Dashboard - Build, Deploy, Manage"""
     pass
 
-@cli.command(name="deploy_backend")
-def deploy_backend():
-    """Package and deploy FastAPI backend to AWS Lambda"""
-    domain_api = "api.dashboard.danieldow.com"
-    zip_name = "backend.zip"
-
-    # Step 1: Package backend
-    click.echo("📦 Packaging backend...")
-    backend_dir = "backend"
-    with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(backend_dir):
-            for file in files:
-                full_path = os.path.join(root, file)
-                arcname = os.path.relpath(full_path, backend_dir)
-                zipf.write(full_path, arcname)
-    click.echo("✅ Backend packaged into backend.zip.")
-
-    # Step 2: Deploy to AWS Lambda + API Gateway (placeholder)
-    click.echo("🚀 Deploying backend to AWS Lambda (placeholder)...")
-    click.echo("✅ Backend deploy logic will go here.")
-
-    # Step 3: Print API domain instructions
-    click.echo("📌 Update Domain.com DNS:")
-    click.echo(f"Type: CNAME")
-    click.echo(f"Name: api.dashboard")
-    click.echo(f"Value: <your-api-gateway-domain>")
-    click.echo("🎉 Backend API deployed and ready for HTTPS.")
-
-@cli.command(name="deploy_dashboard")
+@cli.command()
 def deploy_dashboard():
     """Build and deploy React dashboard to S3 and CloudFront"""
     domain_sub = "dashboard.danieldow.com"
@@ -46,7 +17,7 @@ def deploy_dashboard():
     # Step 1: Build React app
     click.echo("🔨 Building React app...")
     try:
-        subprocess.run(["npm", "install", "--yes"], cwd="dashboard-app", check=True)
+        subprocess.run(["npm", "install"], cwd="dashboard-app", check=True)
         subprocess.run(["npm", "run", "build"], cwd="dashboard-app", check=True)
         click.echo("✅ React app built successfully.")
     except FileNotFoundError:
@@ -92,7 +63,7 @@ def deploy_dashboard():
     # Step 3: Set up CloudFront + ACM
     cloudfront_deploy()
 
-@cli.command(name="cloudfront_deploy")
+@cli.command()
 def cloudfront_deploy():
     """Set up CloudFront + HTTPS for Dashboard"""
     domain_sub = "dashboard.danieldow.com"
@@ -205,6 +176,7 @@ def cloudfront_deploy():
     cf_domain = response['Distribution']['DomainName']
     click.echo(f"✅ CloudFront deployed: {cf_domain}")
 
+    # Print DNS instructions for Domain.com
     click.echo("📌 Update Domain.com DNS:")
     click.echo(f"Type: CNAME")
     click.echo(f"Name: dashboard")

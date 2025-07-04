@@ -1,55 +1,94 @@
 import React, { useState } from "react";
-import { login, fetchDashboard } from "./api";
+import axios from "./api";
 
 function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
     try {
-      const data = await login(email, password);
-      localStorage.setItem("token", data.access_token);
-      setToken(data.access_token);
-      setError("");
-    } catch {
-      setError("Invalid credentials");
+      const response = await axios.post("/login", new URLSearchParams({
+        username: email,
+        password: password,
+      }));
+      const jwt = response.data.access_token;
+      setToken(jwt);
+      localStorage.setItem("token", jwt);
+      loadDashboard(jwt);
+    } catch (err) {
+      console.error(err);
+      setError("Invalid email or password");
     }
   };
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (jwt) => {
     try {
-      const data = await fetchDashboard(token);
-      setDashboard(data);
-    } catch {
-      setError("Failed to load dashboard");
+      const response = await axios.get("/dashboard", {
+        headers: { Authorization: `Bearer ${jwt || token}` },
+      });
+      setDashboard(response.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load dashboard content.");
     }
   };
 
-  if (!token) {
-    return (
-      <div>
-        <h2>Login</h2>
-        <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-        <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-        <button onClick={handleLogin}>Login</button>
-        {error && <p>{error}</p>}
-      </div>
-    );
-  }
+  const handleLogout = () => {
+    setToken("");
+    setDashboard(null);
+    localStorage.removeItem("token");
+  };
 
   return (
-    <div>
-      <h2>Dashboard</h2>
-      <button onClick={loadDashboard}>Load Dashboard</button> {/* 👈 Add this */}
-      {dashboard ? (
-        <pre>{JSON.stringify(dashboard, null, 2)}</pre>
+    <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
+      <h1>Daniel & Kristan Dashboard</h1>
+
+      {!token ? (
+        <form onSubmit={handleLogin}>
+          <div>
+            <label>Email: </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <label>Password: </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" style={{ marginTop: "1rem" }}>
+            Login
+          </button>
+          {error && <p style={{ color: "red" }}>{error}</p>}
+        </form>
       ) : (
-        <p>No dashboard loaded yet.</p>
+        <div>
+          <p>✅ Logged in</p>
+          <button onClick={() => loadDashboard(token)}>Load Dashboard</button>
+          <button onClick={handleLogout} style={{ marginLeft: "1rem" }}>
+            Logout
+          </button>
+        </div>
       )}
-      {error && <p>{error}</p>}
+
+      {dashboard && (
+        <div style={{ marginTop: "2rem", border: "1px solid #ccc", padding: "1rem" }}>
+          <h2>Welcome, {dashboard.user}</h2>
+          <p>{dashboard.content}</p>
+        </div>
+      )}
     </div>
   );
 }
