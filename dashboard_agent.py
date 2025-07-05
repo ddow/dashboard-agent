@@ -75,9 +75,21 @@ def refresh():
                 click.echo("✅ CloudFront cache invalidated.")
                 break
 
-    # Restart backend
+    # Deploy backend
+    deploy_backend()
+
+    # Restart backend locally (dev use)
     start_backend()
     click.echo("🎉 Dashboard refreshed and backend restarted.")
+
+def deploy_backend():
+    """Deploy backend to AWS Lambda & API Gateway"""
+    click.echo("🚀 Deploying backend to Lambda & API Gateway...")
+    try:
+        subprocess.run(["./deploy_backend.sh"], check=True)
+        click.echo("✅ Backend deployed.")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"❌ Backend deployment failed: {e}")
 
 def deploy_to_s3(bucket_name):
     """Upload build to S3 bucket."""
