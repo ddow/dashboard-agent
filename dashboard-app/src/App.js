@@ -1,92 +1,81 @@
+// dashboard-app/src/App.js
+
 import React, { useState } from "react";
-import axios from "./api";
+import { login, getDashboard } from "./api";
 
 function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [dashboard, setDashboard] = useState(null);
+  const [token, setToken] = useState("");
+  const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("/login", new URLSearchParams({
-        username: email,
-        password: password,
-      }));
-      const jwt = response.data.access_token;
-      setToken(jwt);
-      localStorage.setItem("token", jwt);
-      loadDashboard(jwt);
+      const result = await login(email, password);
+      setToken(result.access_token);
     } catch (err) {
-      console.error(err);
-      setError("Invalid email or password");
+      setError(err.message);
     }
   };
 
-  const loadDashboard = async (jwt) => {
+  const loadDashboard = async () => {
+    setError("");
     try {
-      const response = await axios.get("/dashboard", {
-        headers: { Authorization: `Bearer ${jwt || token}` },
-      });
-      setDashboard(response.data);
+      const data = await getDashboard(token);
+      setDashboardData(data);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load dashboard content.");
+      setError(err.message);
     }
   };
 
   const handleLogout = () => {
     setToken("");
-    setDashboard(null);
-    localStorage.removeItem("token");
+    setDashboardData(null);
+    setEmail("");
+    setPassword("");
   };
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
+    <div className="App">
       <h1>Daniel & Kristan Dashboard</h1>
-
       {!token ? (
         <form onSubmit={handleLogin}>
-          <div>
-            <label>Email: </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div style={{ marginTop: "1rem" }}>
-            <label>Password: </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" style={{ marginTop: "1rem" }}>
-            Login
-          </button>
+          <h2>Login</h2>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          /><br/>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          /><br/>
+          <button type="submit">Login</button>
           {error && <p style={{ color: "red" }}>{error}</p>}
         </form>
       ) : (
         <div>
-          <p>✅ Logged in</p>
-          <button onClick={() => loadDashboard(token)}>Load Dashboard</button>
-          <button onClick={handleLogout} style={{ marginLeft: "1rem" }}>
-            Logout
-          </button>
-        </div>
-      )}
-
-      {dashboard && (
-        <div style={{ marginTop: "2rem", border: "1px solid #ccc", padding: "1rem" }}>
-          <h2>Welcome, {dashboard.user}</h2>
-          <p>{dashboard.content}</p>
+          <h2>Dashboard</h2>
+          {dashboardData ? (
+            <div>
+              <p><strong>User:</strong> {dashboardData.user}</p>
+              <p><strong>Email:</strong> {dashboardData.email}</p>
+              <p>{dashboardData.content}</p>
+            </div>
+          ) : (
+            <p>No dashboard data loaded yet.</p>
+          )}
+          <button onClick={loadDashboard}>Load Dashboard</button>
+          <button onClick={handleLogout}>Log out</button>
+          {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
       )}
     </div>

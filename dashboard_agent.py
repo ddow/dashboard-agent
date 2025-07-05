@@ -3,37 +3,89 @@ import os
 import boto3
 import time
 import subprocess
+import socket
 
 @click.group()
 def cli():
     """AI Agent for Dashboard - Build, Deploy, Manage"""
     pass
 
+def is_port_in_use(port):
+    """Check if local port is in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+def start_backend():
+    """Start FastAPI backend."""
+    if is_port_in_use(8000):
+        click.echo("✅ Backend already running at http://127.0.0.1:8000")
+    else:
+        click.echo("🔄 Starting backend server...")
+        subprocess.Popen(
+            ["uvicorn", "main:app", "--reload"],
+            cwd="dashboard-app/backend"
+        )
+        time.sleep(2)
+        click.echo("✅ Backend started at http://127.0.0.1:8000")
+
+def stop_backend():
+    """Stop FastAPI backend."""
+    if is_port_in_use(8000):
+        click.echo("🛑 Stopping backend server...")
+        subprocess.run(["pkill", "-f", "uvicorn"])
+        time.sleep(1)
+        click.echo("✅ Backend stopped.")
+    else:
+        click.echo("ℹ️ Backend was not running.")
+
 @cli.command()
-def deploy_dashboard():
-    """Build and deploy React dashboard to S3 and CloudFront"""
+def refresh():
+    """Rebuild frontend, redeploy backend, invalidate CloudFront cache."""
     domain_sub = "dashboard.danieldow.com"
+    click.echo("🔄 Refreshing Dashboard deployment...")
 
-    # Step 1: Build React app
-    click.echo("🔨 Building React app...")
+    # Rebuild frontend
+    click.echo("🔨 Rebuilding React app...")
     try:
-        subprocess.run(["npm", "install"], cwd="dashboard-app", check=True)
-        subprocess.run(["npm", "run", "build"], cwd="dashboard-app", check=True)
-        click.echo("✅ React app built successfully.")
-    except FileNotFoundError:
-        click.echo("❌ npm is not installed or not found in PATH.")
-        return
+        subprocess.run(["npx", "react-scripts", "build"], cwd="dashboard-app", check=True)
+        click.echo("✅ React app rebuilt.")
     except subprocess.CalledProcessError:
-        click.echo("❌ React build failed. Make sure npm works.")
+        click.echo("❌ React build failed.")
         return
 
-    # Step 2: Deploy to S3
+    # Upload to S3
+    deploy_to_s3(domain_sub)
+
+    # Invalidate CloudFront
+    cf_client = boto3.client('cloudfront')
+    click.echo("♻️  Invalidating CloudFront cache...")
+    paginator = cf_client.get_paginator('list_distributions')
+    for page in paginator.paginate():
+        for dist in page['DistributionList'].get('Items', []):
+            aliases = dist['Aliases']['Items'] if dist['Aliases']['Quantity'] > 0 else []
+            if domain_sub in aliases:
+                cf_id = dist['Id']
+                cf_client.create_invalidation(
+                    DistributionId=cf_id,
+                    InvalidationBatch={
+                        'Paths': {'Quantity': 1, 'Items': ['/*']},
+                        'CallerReference': str(time.time())
+                    }
+                )
+                click.echo("✅ CloudFront cache invalidated.")
+                break
+
+    # Restart backend
+    start_backend()
+    click.echo("🎉 Dashboard refreshed and backend restarted.")
+
+def deploy_to_s3(bucket_name):
+    """Upload build to S3 bucket."""
     s3 = boto3.client('s3')
-    click.echo("🚀 Deploying React build to S3...")
-    bucket_name = domain_sub
+    click.echo("🚀 Uploading React build to S3...")
     try:
         s3.head_bucket(Bucket=bucket_name)
-        click.echo(f"🪣 Bucket {bucket_name} already exists.")
+        click.echo(f"🪣 Bucket {bucket_name} exists.")
     except:
         click.echo(f"🪣 Creating bucket: {bucket_name}")
         s3.create_bucket(Bucket=bucket_name)
@@ -59,129 +111,6 @@ def deploy_dashboard():
                 ExtraArgs={'ContentType': content_type}
             )
     click.echo("✅ React app deployed to S3.")
-
-    # Step 3: Set up CloudFront + ACM
-    cloudfront_deploy()
-
-@cli.command()
-def cloudfront_deploy():
-    """Set up CloudFront + HTTPS for Dashboard"""
-    domain_sub = "dashboard.danieldow.com"
-    acm_client = boto3.client('acm', region_name='us-east-1')
-    cf_client = boto3.client('cloudfront')
-
-    # Request or find ACM cert
-    click.echo("🔍 Checking for existing SSL certificate...")
-    paginator = acm_client.get_paginator('list_certificates')
-    existing_cert_arn = None
-    for page in paginator.paginate(CertificateStatuses=['ISSUED', 'PENDING_VALIDATION']):
-        for cert in page['CertificateSummaryList']:
-            if domain_sub in cert['DomainName']:
-                existing_cert_arn = cert['CertificateArn']
-                break
-        if existing_cert_arn:
-            break
-
-    if existing_cert_arn:
-        click.echo(f"✅ Found existing certificate: {existing_cert_arn}")
-        cert_arn = existing_cert_arn
-    else:
-        click.echo("📜 Requesting new SSL certificate...")
-        response = acm_client.request_certificate(
-            DomainName=domain_sub,
-            ValidationMethod='DNS'
-        )
-        cert_arn = response['CertificateArn']
-        click.echo(f"✅ Certificate requested: {cert_arn}")
-
-    # Wait for DNS validation records
-    click.echo("⏳ Fetching DNS validation records...")
-    while True:
-        cert_details = acm_client.describe_certificate(CertificateArn=cert_arn)['Certificate']
-        options = cert_details.get('DomainValidationOptions', [])
-        all_have_records = all('ResourceRecord' in opt for opt in options)
-        if all_have_records:
-            break
-        click.echo("⏳ Waiting for AWS to populate DNS validation records...")
-        time.sleep(10)
-
-    # Print DNS records for Domain.com
-    click.echo("👉 Add these DNS records in Domain.com for validation:")
-    for opt in options:
-        record = opt['ResourceRecord']
-        click.echo(f"Type: {record['Type']}")
-        click.echo(f"Name: {record['Name'].rstrip('.')}")
-        click.echo(f"Value: {record['Value'].rstrip('.')}")
-        click.echo(f"Status: {opt['ValidationStatus']}")
-
-    # Wait for ACM certificate validation
-    click.echo("⏳ Waiting for SSL certificate to be validated...")
-    while True:
-        cert_details = acm_client.describe_certificate(CertificateArn=cert_arn)['Certificate']
-        status = cert_details['Status']
-        if status == 'ISSUED':
-            click.echo("✅ SSL certificate validated and issued.")
-            break
-        elif status == 'FAILED':
-            click.echo("❌ SSL certificate validation FAILED.")
-            return
-        else:
-            click.echo(f"⏳ Current status: {status} ... checking again in 30s")
-            time.sleep(30)
-
-    # Create CloudFront distribution
-    click.echo("📦 Creating CloudFront distribution...")
-    response = cf_client.create_distribution(
-        DistributionConfig={
-            'CallerReference': str(time.time()),
-            'Comment': 'Dashboard for Daniel & Kristan',
-            'Aliases': {
-                'Quantity': 1,
-                'Items': [domain_sub]
-            },
-            'DefaultRootObject': 'index.html',
-            'Origins': {
-                'Quantity': 1,
-                'Items': [{
-                    'Id': 'S3-dashboard-origin',
-                    'DomainName': f"{domain_sub}.s3-website-us-east-1.amazonaws.com",
-                    'CustomOriginConfig': {
-                        'HTTPPort': 80,
-                        'HTTPSPort': 443,
-                        'OriginProtocolPolicy': 'http-only'
-                    }
-                }]
-            },
-            'DefaultCacheBehavior': {
-                'TargetOriginId': 'S3-dashboard-origin',
-                'ViewerProtocolPolicy': 'redirect-to-https',
-                'AllowedMethods': {
-                    'Quantity': 2,
-                    'Items': ['GET', 'HEAD']
-                },
-                'ForwardedValues': {
-                    'QueryString': False,
-                    'Cookies': {'Forward': 'none'}
-                },
-                'MinTTL': 0
-            },
-            'ViewerCertificate': {
-                'ACMCertificateArn': cert_arn,
-                'SSLSupportMethod': 'sni-only',
-                'MinimumProtocolVersion': 'TLSv1.2_2021'
-            },
-            'Enabled': True
-        }
-    )
-    cf_domain = response['Distribution']['DomainName']
-    click.echo(f"✅ CloudFront deployed: {cf_domain}")
-
-    # Print DNS instructions for Domain.com
-    click.echo("📌 Update Domain.com DNS:")
-    click.echo(f"Type: CNAME")
-    click.echo(f"Name: dashboard")
-    click.echo(f"Value: {cf_domain}")
-    click.echo("🎉 Done! All traffic will redirect to HTTPS at dashboard.danieldow.com")
 
 if __name__ == "__main__":
     cli()

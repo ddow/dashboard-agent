@@ -2,14 +2,14 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
-# SECRET_KEY should be kept safe in prod (use AWS Secrets Manager or env var)
-SECRET_KEY = "your-super-secret-key-here"  # CHANGE THIS IN PRODUCTION
+# Secret key for JWT encoding/decoding (keep secret!)
+SECRET_KEY = "your-super-secret-key-here"  # Replace with env var in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
-    """Create a new JWT token with optional expiry"""
+    """Generate JWT token"""
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
@@ -18,12 +18,9 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 def decode_access_token(token: str):
-    """Decode and verify a JWT token"""
+    """Decode JWT token and return payload"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return payload.get("sub")
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
