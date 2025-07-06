@@ -6,6 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth import create_access_token, decode_access_token
 from users import get_user, verify_password
 from mangum import Mangum
+import sys
+import os
+
+print("👀 sys.path:", sys.path)
+print("📂 cwd:", os.getcwd())
+print("📦 contents:", os.listdir("."))
 
 app = FastAPI(
     title="Daniel & Kristan Dashboard API",
@@ -13,15 +19,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow frontend CORS
+# ✅ CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, set to your frontend origin
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # ✅ needs leading slash
 
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):

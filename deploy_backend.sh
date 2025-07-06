@@ -2,7 +2,7 @@
 set -e
 
 LAMBDA_NAME="dashboard-backend"
-ZIP_FILE="dashboard-app/dashboard-backend.zip"
+ZIP_FILE="dashboard-app/backend/dashboard-backend.zip"
 ROLE_NAME="DashboardLambdaRole"
 POLICY_ARN="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 BUILD_DIR="dashboard-app/backend/lambda-build"
@@ -28,8 +28,7 @@ docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.
   rm -rf pydantic_core* __pycache__ *.dist-info
 
   /var/lang/bin/python3.12 -m pip install --upgrade pip
-  /var/lang/bin/python3.12 -m pip install --no-binary :all: --force-reinstall pydantic-core -t .
-  /var/lang/bin/python3.12 -m pip install --no-binary :all: -r requirements-lambda.txt -t .
+  /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
 
   echo '✅ Build contents:'
   find . -name \"*_pydantic_core*.so\"
@@ -37,11 +36,11 @@ docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.
 
 echo "📦 Creating deployment package (on host)..."
 cd $BUILD_DIR
-rm -f ../../../dashboard-app/dashboard-backend.zip
-zip -r ../../../dashboard-app/dashboard-backend.zip . > /dev/null
+rm -f ../../backend/dashboard-backend.zip
+zip -r ../../backend/dashboard-backend.zip . > /dev/null
 cd -
 echo "✅ Created zip:"
-unzip -l dashboard-app/dashboard-backend.zip | grep _pydantic_core
+unzip -l dashboard-app/backend/dashboard-backend.zip | grep _pydantic_core
 
 echo "✅ Lambda package ready: $ZIP_FILE"
 
@@ -83,9 +82,9 @@ echo "🚀 Deploying Lambda: $LAMBDA_NAME"
 if aws lambda get-function --function-name $LAMBDA_NAME >/dev/null 2>&1; then
   echo "🔄 Updating existing Lambda function..."
   if [ ! -f "$ZIP_FILE" ]; then
-  echo "❌ ERROR: Zip file not found at $ZIP_FILE"
-  exit 1
-fi
+    echo "❌ ERROR: Zip file not found at $ZIP_FILE"
+    exit 1
+  fi
   aws lambda update-function-code --function-name $LAMBDA_NAME --zip-file fileb://$ZIP_FILE
   aws lambda update-function-configuration \
     --function-name $LAMBDA_NAME \
@@ -96,6 +95,7 @@ else
   aws lambda create-function \
     --function-name $LAMBDA_NAME \
     --runtime python3.12 \
+    --architectures arm64 \
     --role arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/$ROLE_NAME \
     --handler main.handler \
     --zip-file fileb://$ZIP_FILE \
