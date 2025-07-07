@@ -242,7 +242,7 @@ aws apigateway put-integration \
 
 aws lambda add-permission \
   --function-name $LAMBDA_NAME \
-  --statement-id publicproxy-$(date +%s) \
+  --statement-id "publicproxy-$(date +%s)" \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
   --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*/public/* || true
