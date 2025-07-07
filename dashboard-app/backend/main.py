@@ -76,5 +76,6 @@ def serve_static(filename: str = Path(...)):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(full_path)
 
+# AWS CI/CD test
 # AWS Lambda handler
 handler = Mangum(app)
