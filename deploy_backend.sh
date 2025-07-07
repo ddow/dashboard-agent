@@ -143,7 +143,7 @@ if [ -z "$RESOURCE_ID" ]; then
   echo "⚠️ {proxy+} already exists. Fetching..."
   RESOURCE_ID=$(aws apigateway get-resources \
     --rest-api-id "$REST_API_ID" \
-    --query "items[?pathPart=='{proxy+}'].id" --output text)
+    --query "items[?pathPart=='{proxy+}'].id | [0]" --output text)
 fi
 
 if [ -z "$RESOURCE_ID" ]; then
