@@ -1,0 +1,7 @@
+fastapi==0.111.0
+pydantic==2.6.4
+boto3
+python-jose[cryptography]
+passlib==1.7.4
+bcrypt==3.2.2
+Mangum
