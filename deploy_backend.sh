@@ -48,12 +48,12 @@ else
   set +e
   cat > trust-policy.json <<EOF
 {
-  \"Version\": \"2012-10-17\",
-  \"Statement\": [
+  "Version": "2012-10-17",
+  "Statement": [
     {
-      \"Effect\": \"Allow\",
-      \"Principal\": { \"Service\": \"lambda.amazonaws.com\" },
-      \"Action\": \"sts:AssumeRole\"
+      "Effect": "Allow",
+      "Principal": { "Service": "lambda.amazonaws.com" },
+      "Action": "sts:AssumeRole"
     }
   ]
 }
@@ -192,7 +192,7 @@ aws apigateway put-integration \
 
 aws lambda add-permission \
   --function-name $LAMBDA_NAME \
-  --statement-id apigateway-$(date +%s) \
+  --statement-id "apigateway-$(date +%s)" \
   --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com \
   --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*/* || true
