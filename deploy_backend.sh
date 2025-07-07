@@ -146,6 +146,11 @@ if [ -z "$RESOURCE_ID" ]; then
     --query "items[?pathPart=='{proxy+}'].id" --output text)
 fi
 
+if [ -z "$RESOURCE_ID" ]; then
+  echo "❌ Failed to retrieve or create {proxy+} resource. Exiting."
+  exit 1
+fi
+
 METHOD_EXISTS=$(aws apigateway get-method \
   --rest-api-id "$REST_API_ID" \
   --resource-id "$RESOURCE_ID" \
