@@ -79,3 +79,4 @@ def serve_static(filename: str = Path(...)):
 # AWS CI/CD test
 # AWS Lambda handler
 handler = Mangum(app)
+# CI/CD test
