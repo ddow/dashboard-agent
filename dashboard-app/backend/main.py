@@ -3,6 +3,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from auth import create_access_token, decode_access_token
 from users import get_user, verify_password
 from mangum import Mangum
@@ -27,6 +29,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Serve static files (e.g., /login -> index.html)
+app.mount("/public", StaticFiles(directory="public"), name="public")
+
+@app.get("/login")
+def serve_login():
+    return FileResponse("public/index.html")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # ✅ needs leading slash
 
@@ -56,6 +65,16 @@ def read_dashboard(request: Request, token: str = Depends(oauth2_scheme)):
         "email": user["email"],
         "content": f"Welcome {user['name']}!"
     }
+
+from fastapi.responses import FileResponse
+from fastapi import Path
+
+@app.get("/public/{filename:path}")
+def serve_static(filename: str = Path(...)):
+    full_path = f"public/{filename}"
+    if not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(full_path)
 
 # AWS Lambda handler
 handler = Mangum(app)
