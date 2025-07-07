@@ -1,3 +1,8 @@
 node_modules
 build
 lambda-build
+dashboard-app/build/index.html
+dashboard-app/build/asset-manifest.json
+dashboard-app/build/index.html
+dashboard-app/build/static/css/main.2ad592c5.css
+dashboard-app/build/static/css/main.2ad592c5.css.map
