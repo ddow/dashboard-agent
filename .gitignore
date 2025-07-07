@@ -1,8 +1,14 @@
-node_modules
-build
-lambda-build
-dashboard-app/build/index.html
-dashboard-app/build/asset-manifest.json
-dashboard-app/build/index.html
-dashboard-app/build/static/css/main.2ad592c5.css
-dashboard-app/build/static/css/main.2ad592c5.css.map
+# Node and Python build artifacts
+node_modules/
+build/
+lambda-build/
+
+# Frontend build output
+dashboard-app/build/
+
+# Optional: Only ignore specific files if you want to keep others
+# (these lines below are redundant if dashboard-app/build/ is ignored)
+# dashboard-app/build/index.html
+# dashboard-app/build/asset-manifest.json
+# dashboard-app/build/static/css/main.2ad592c5.css
+# dashboard-app/build/static/css/main.2ad592c5.css.map
