@@ -1,6 +1,6 @@
 # dashboard-app/backend/main.py
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Path
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,12 +8,7 @@ from fastapi.responses import FileResponse
 from auth import create_access_token, decode_access_token
 from users import get_user, verify_password
 from mangum import Mangum
-import sys
 import os
-
-print("👀 sys.path:", sys.path)
-print("📂 cwd:", os.getcwd())
-print("📦 contents:", os.listdir("."))
 
 app = FastAPI(
     title="Daniel & Kristan Dashboard API",
@@ -24,13 +19,13 @@ app = FastAPI(
 # ✅ CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, set to your frontend origin
+    allow_origins=["*"],  # In production, set this to your frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-# Serve static files (e.g., /login -> index.html)
+# Serve raw static files under /public/
 app.mount("/public", StaticFiles(directory="public"), name="public")
 
 @app.get("/login")
@@ -71,17 +66,14 @@ def read_dashboard(request: Request, token: str = Depends(oauth2_scheme)):
         "content": f"Welcome {user['name']}!"
     }
 
-from fastapi.responses import FileResponse
-from fastapi import Path
-
+# ✅ Fallback route to serve individual public files, including images
 @app.get("/public/{filename:path}")
-def serve_static(filename: str = Path(...)):
-    full_path = f"public/{filename}"
+def serve_static_file(filename: str = Path(...)):
+    full_path = os.path.join("public", filename)
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(full_path)
 
-# AWS CI/CD test
 # AWS Lambda handler
 handler = Mangum(app)
-# CI/CD test
+# run
