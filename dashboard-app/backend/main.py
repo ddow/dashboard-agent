@@ -42,11 +42,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # ✅ needs leading sla
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     email = form_data.username.lower()
+    print(f"📨 Login attempt: {email}")
     user = get_user(email)
+    print(f"🔍 Found user: {user}")
     if not user or not verify_password(form_data.password, user["password"]):
+        print("❌ Invalid credentials")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     access_token = create_access_token(data={"sub": email})
+    print("✅ Login successful")
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @app.get("/dashboard")
 def read_dashboard(request: Request, token: str = Depends(oauth2_scheme)):
