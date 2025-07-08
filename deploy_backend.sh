@@ -27,6 +27,7 @@ docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.
   cd /var/task
   /var/lang/bin/python3.12 -m pip install --upgrade pip
   /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
+  # ⚠️ Only clean up AFTER install — preserve .so binaries
   rm -rf __pycache__ *.dist-info
   echo '✅ Verifying pydantic_core binaries:'
   find . -name '*_pydantic_core*.so'
