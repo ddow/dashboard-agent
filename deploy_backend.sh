@@ -119,7 +119,19 @@ else
 fi
 
 echo "📤 Uploading static image to S3..."
-aws s3 cp "$LOCAL_IMAGE_PATH" "s3://$BUCKET_NAME/$S3_KEY" --acl public-read
+aws s3 cp "$LOCAL_IMAGE_PATH" "s3://$BUCKET_NAME/$S3_KEY"
+echo "🔐 Setting public-read bucket policy for $BUCKET_NAME..."
+aws s3api put-bucket-policy --bucket "$BUCKET_NAME" --policy "{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    {
+      \"Effect\": \"Allow\",
+      \"Principal\": \"*\",
+      \"Action\": \"s3:GetObject\",
+      \"Resource\": \"arn:aws:s3:::$BUCKET_NAME/*\"
+    }
+  ]
+}"
 echo "✅ Uploaded: https://$BUCKET_NAME.s3.amazonaws.com/$S3_KEY"
 
 # ✅ API Gateway setup
