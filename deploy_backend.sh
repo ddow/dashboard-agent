@@ -25,10 +25,10 @@ docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.
   dnf install -y gcc gcc-c++ make libffi-devel openssl-devel python3-devel rust cargo zip > /dev/null
   export PATH=\"\$HOME/.cargo/bin:\$PATH\"
   cd /var/task
-  rm -rf pydantic_core* __pycache__ *.dist-info
   /var/lang/bin/python3.12 -m pip install --upgrade pip
   /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
-  echo '✅ Build contents:'
+  rm -rf __pycache__ *.dist-info
+  echo '✅ Verifying pydantic_core binaries:'
   find . -name '*_pydantic_core*.so'
 "
 
@@ -38,7 +38,7 @@ rm -f ../../backend/dashboard-backend.zip
 zip -r ../../backend/dashboard-backend.zip . > /dev/null
 cd -
 echo "✅ Created zip:"
-unzip -l "$ZIP_FILE" | grep _pydantic_core || echo "(No pydantic_core binary found — continuing)"
+unzip -l "$ZIP_FILE" | grep _pydantic_core || echo "(No pydantic_core binary found — continuing anyway)"
 
 echo "✅ Lambda package ready: $ZIP_FILE"
 
@@ -119,24 +119,10 @@ else
 fi
 
 echo "📤 Uploading static image to S3..."
-aws s3 cp "$LOCAL_IMAGE_PATH" "s3://$BUCKET_NAME/$S3_KEY"
-echo "🔐 Setting public-read bucket policy for $BUCKET_NAME..."
-aws s3api put-bucket-policy --bucket "$BUCKET_NAME" --policy "{
-  \"Version\": \"2012-10-17\",
-  \"Statement\": [
-    {
-      \"Effect\": \"Allow\",
-      \"Principal\": \"*\",
-      \"Action\": \"s3:GetObject\",
-      \"Resource\": \"arn:aws:s3:::$BUCKET_NAME/*\"
-    }
-  ]
-}"
-echo "✅ Uploaded: https://$BUCKET_NAME.s3.amazonaws.com/$S3_KEY"
+aws s3 cp "$LOCAL_IMAGE_PATH" "s3://$BUCKET_NAME/$S3_KEY" || echo "⚠️ Upload failed. Check permissions."
 
-# ✅ API Gateway setup
+echo "🌐 Setting up API Gateway..."
 API_NAME="dashboard-api"
-echo "🌐 Setting up API Gateway: $API_NAME"
 REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME'].id" --output text)
 [ -z "$REST_API_ID" ] && REST_API_ID=$(aws apigateway create-rest-api --name "$API_NAME" --query 'id' --output text)
 
