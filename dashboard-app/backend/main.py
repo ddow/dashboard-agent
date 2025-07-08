@@ -71,3 +71,4 @@ def serve_static_file(filename: str = Path(...)):
 
 # AWS Lambda handler
 handler = Mangum(app)
+# run
