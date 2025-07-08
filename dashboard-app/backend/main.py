@@ -37,7 +37,7 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 def serve_login():
     return FileResponse("public/index.html")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")  # ✅ needs leading slash
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")  # ✅ needs leading slash
 
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
