@@ -25,11 +25,20 @@ docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.
   dnf install -y gcc gcc-c++ make libffi-devel openssl-devel python3-devel rust cargo zip > /dev/null
   export PATH=\"\$HOME/.cargo/bin:\$PATH\"
   cd /var/task
+
   /var/lang/bin/python3.12 -m pip install --upgrade pip
-  /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
-  # ⚠️ Only clean up AFTER install — preserve .so binaries
-  rm -rf __pycache__ *.dist-info
-  echo '✅ Verifying pydantic_core binaries:'
+
+  # ✅ Install most packages with prebuilt binaries
+  /var/lang/bin/python3.12 -m pip install --no-cache-dir -r requirements-lambda.txt -t .
+
+  # ✅ Reinstall email-validator from source to ensure metadata is included
+  /var/lang/bin/python3.12 -m pip install --force-reinstall --no-deps --no-binary=email-validator email-validator -t .
+
+  # 🔧 Remove conflicting version if present
+  rm -rf email_validator-2.2.0.dist-info
+
+  echo '✅ Verifying metadata:'
+  find . -name 'email_validator-*.dist-info'
   find . -name '*_pydantic_core*.so'
 "
 
@@ -131,12 +140,24 @@ PARENT_ID=$(aws apigateway get-resources --rest-api-id "$REST_API_ID" --query 'i
 
 add_resource () {
   local path="$1"
-  local resource_id=$(aws apigateway get-resources --rest-api-id "$REST_API_ID" --query "items[?path=='$path'].id" --output text 2>/dev/null || true)
+
+  # Safely query existing resource ID
+  local resource_id=$(aws apigateway get-resources \
+    --rest-api-id "$REST_API_ID" \
+    --query "items[?path==\`'$path'\`].id" \
+    --output text 2>/dev/null || true)
 
   if [ -z "$resource_id" ]; then
     local parent_path="${path%/*}"
+    if [ -z "$parent_path" ] || [ "$parent_path" = "$path" ]; then
+      parent_path="/"
+    fi
+
     local path_part="${path##*/}"
-    local parent_id=$(aws apigateway get-resources --rest-api-id "$REST_API_ID" --query "items[?path=='$parent_path'].id" --output text)
+    local parent_id=$(aws apigateway get-resources \
+      --rest-api-id "$REST_API_ID" \
+      --query "items[?path==\`'$parent_path'\`].id" \
+      --output text)
 
     echo "🆕 Creating resource: $path"
     resource_id=$(aws apigateway create-resource \
@@ -166,11 +187,77 @@ add_resource () {
     --statement-id "$(echo "$path" | tr -dc 'a-zA-Z0-9')-$(date +%s)" \
     --action lambda:InvokeFunction \
     --principal apigateway.amazonaws.com \
-    --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*$path* || true
+    --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*/* || true
+
+  echo "$resource_id"
 }
 
-add_resource "/{proxy+}"
-add_resource "/public/{proxy+}"
+add_proxy_resource () {
+  local base_path="$1"
+
+  # Normalize to exactly "/" or a clean path with no trailing slash
+  if [[ "$base_path" == "/" ]]; then
+    parent_path="/"
+  else
+    parent_path="${base_path%/}"
+  fi
+
+  # Look up the parent resource ID
+  local parent_id=$(aws apigateway get-resources \
+    --rest-api-id "$REST_API_ID" \
+    --query "items[?path=='$parent_path'].id" \
+    --output text)
+
+  # Compute full proxy path
+  local full_proxy_path="${parent_path}/{proxy+}"
+
+  # Check if the proxy resource already exists
+  local existing_id=$(aws apigateway get-resources \
+    --rest-api-id "$REST_API_ID" \
+    --query "items[?path=='$full_proxy_path'].id" \
+    --output text 2>/dev/null)
+
+  if [ -n "$existing_id" ]; then
+    echo "⚠️ Proxy resource already exists at $full_proxy_path"
+    resource_id="$existing_id"
+  else
+    echo "🆕 Creating proxy resource: $full_proxy_path"
+    resource_id=$(aws apigateway create-resource \
+      --rest-api-id "$REST_API_ID" \
+      --parent-id "$parent_id" \
+      --path-part "{proxy+}" \
+      --query 'id' --output text)
+  fi
+
+  echo "🔗 Attaching ANY method to $full_proxy_path..."
+  aws apigateway put-method \
+    --rest-api-id "$REST_API_ID" \
+    --resource-id "$resource_id" \
+    --http-method ANY \
+    --authorization-type "NONE" || true
+
+  aws apigateway put-integration \
+    --rest-api-id "$REST_API_ID" \
+    --resource-id "$resource_id" \
+    --http-method ANY \
+    --type AWS_PROXY \
+    --integration-http-method POST \
+    --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:$(aws sts get-caller-identity --query Account --output text):function:$LAMBDA_NAME/invocations || true
+
+  aws lambda add-permission \
+    --function-name "$LAMBDA_NAME" \
+    --statement-id "$(echo "${base_path}_proxy" | tr -dc 'a-zA-Z0-9')-$(date +%s)" \
+    --action lambda:InvokeFunction \
+    --principal apigateway.amazonaws.com \
+    --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*/* || true
+}
+
+add_proxy_resource "/"
+add_proxy_resource "/public"
+
+echo "🛠 Ensuring /login route exists..."
+LOGIN_RESOURCE_ID=$(add_resource "/login")
+echo "✅ /login resource ID: $LOGIN_RESOURCE_ID"
 
 aws apigateway create-deployment \
   --rest-api-id "$REST_API_ID" \
