@@ -195,33 +195,37 @@ add_resource () {
 add_proxy_resource () {
   local base_path="$1"
 
-  # Normalize to exactly "/" or a clean path with no trailing slash
-  if [[ "$base_path" == "/" ]]; then
+  # Normalize to valid parent_path
+  if [[ -z "$base_path" || "$base_path" == "/" ]]; then
     parent_path="/"
   else
     parent_path="${base_path%/}"
   fi
 
-  # Look up the parent resource ID
+  echo "🔍 Normalized parent_path: $parent_path"
+
+  # Get parent ID by path
   local parent_id=$(aws apigateway get-resources \
     --rest-api-id "$REST_API_ID" \
     --query "items[?path=='$parent_path'].id" \
     --output text)
 
-  # Compute full proxy path
-  local full_proxy_path="${parent_path}/{proxy+}"
+  if [[ -z "$parent_id" ]]; then
+    echo "❌ Could not resolve parent ID for: $parent_path"
+    exit 1
+  fi
 
-  # Check if the proxy resource already exists
+  # Find existing {proxy+} child of that parent
   local existing_id=$(aws apigateway get-resources \
     --rest-api-id "$REST_API_ID" \
-    --query "items[?path=='$full_proxy_path'].id" \
+    --query "items[?pathPart=='{proxy+}' && parentId=='$parent_id'].id" \
     --output text 2>/dev/null)
 
   if [ -n "$existing_id" ]; then
-    echo "⚠️ Proxy resource already exists at $full_proxy_path"
+    echo "⚠️ Proxy resource already exists under $parent_path"
     resource_id="$existing_id"
   else
-    echo "🆕 Creating proxy resource: $full_proxy_path"
+    echo "🆕 Creating proxy resource under $parent_path"
     resource_id=$(aws apigateway create-resource \
       --rest-api-id "$REST_API_ID" \
       --parent-id "$parent_id" \
@@ -229,7 +233,7 @@ add_proxy_resource () {
       --query 'id' --output text)
   fi
 
-  echo "🔗 Attaching ANY method to $full_proxy_path..."
+  echo "🔗 Attaching ANY method to {proxy+} under $parent_path..."
   aws apigateway put-method \
     --rest-api-id "$REST_API_ID" \
     --resource-id "$resource_id" \
@@ -246,7 +250,7 @@ add_proxy_resource () {
 
   aws lambda add-permission \
     --function-name "$LAMBDA_NAME" \
-    --statement-id "$(echo "${base_path}_proxy" | tr -dc 'a-zA-Z0-9')-$(date +%s)" \
+    --statement-id "$(echo "${base_path:-root}_proxy" | tr -dc 'a-zA-Z0-9')-$(date +%s)" \
     --action lambda:InvokeFunction \
     --principal apigateway.amazonaws.com \
     --source-arn arn:aws:execute-api:us-east-1:$(aws sts get-caller-identity --query Account --output text):$REST_API_ID/*/*/* || true
