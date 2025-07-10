@@ -6,14 +6,38 @@ from passlib.context import CryptContext
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# DynamoDB setup
-TABLE_NAME = os.getenv("DASHBOARD_USERS_TABLE", "dashboard-users")
-dynamodb = boto3.resource('dynamodb', region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
-users_table = dynamodb.Table(TABLE_NAME)
+# Check for test mode
+DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+
+fake_users_db = {}
+
+# Local fake DB for dry-run testing
+if DRY_RUN:
+    print("⚠️ DRY_RUN enabled: Using in-memory fake user database")
+    fake_users_db = {
+        "testuser@example.com": {
+            "email": "testuser@example.com",
+            "name": "Test User",
+            "password": pwd_context.hash("Passw0rd!")
+        }
+    }
+else:
+    # Real DynamoDB setup
+    TABLE_NAME = os.getenv("DASHBOARD_USERS_TABLE", "dashboard-users")
+    dynamodb = boto3.resource('dynamodb', region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
+    users_table = dynamodb.Table(TABLE_NAME)
 
 
 def get_user(email: str):
-    """Fetch user by email from DynamoDB"""
+    """Fetch user by email from fake DB (in DRY_RUN) or DynamoDB"""
+    if DRY_RUN:
+        user = fake_users_db.get(email.lower())
+        if user:
+            print(f"✅ [DRY_RUN] Found user: {email}")
+        else:
+            print(f"❌ [DRY_RUN] User not found: {email}")
+        return user
+
     try:
         response = users_table.get_item(Key={"email": email})
         user = response.get("Item")
