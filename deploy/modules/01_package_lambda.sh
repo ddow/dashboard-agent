@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Allow skipping AWS calls when DRY_RUN=true
+DRY_RUN=${DRY_RUN:-false}
+
 echo "📦 Step 1: Packaging Lambda function..."
 echo "🧹 Cleaning old build directory..."
 
