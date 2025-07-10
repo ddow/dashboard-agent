@@ -11,6 +11,9 @@ from mangum import Mangum
 import sys
 import os
 
+print("🚀 main.py loaded: FastAPI app is initializing...")
+print("🛠 DEBUG: This is the real main.py ✅")
+
 print("👀 sys.path:", sys.path)
 print("📂 cwd:", os.getcwd())
 print("📦 contents:", os.listdir("."))
@@ -48,6 +51,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")  # ✅ needs leading sla
 
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    print("🔐 Login request received:", form_data.username)
     email = form_data.username.lower()
     print(f"📨 Login attempt: {email}")
     user = get_user(email)
