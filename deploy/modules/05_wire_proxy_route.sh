@@ -14,9 +14,9 @@ fi
 
 # Get or set PARENT_ID (root resource)
 if [ -z "${PARENT_ID:-}" ]; then
-  if [ "${DRY_RUN:-false}" = "true" ]; then
-    echo "🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id $REST_API_ID --query items[0].id --output text"
-    PARENT_ID=""
+  if [ "$DRY_RUN" = "true" ]; then
+    echo "🧪 DRY RUN: Faking PARENT_ID"
+    PARENT_ID="dryrun-parent-id"
   else
     PARENT_ID=$(aws apigateway get-resources \
       --rest-api-id "$REST_API_ID" \
@@ -26,9 +26,10 @@ if [ -z "${PARENT_ID:-}" ]; then
   export PARENT_ID
 fi
 
-if [ "${DRY_RUN:-false}" = "true" ]; then
-  echo "🧪 DRY RUN: Skipping: aws apigateway create-resource --rest-api-id $REST_API_ID --parent-id $PARENT_ID --path-part {proxy+}"
-  RESOURCE_ID=""
+# Create {proxy+} resource if missing
+if [ "$DRY_RUN" = "true" ]; then
+  echo "🧪 DRY RUN: Skipping: aws apigateway create-resource --parent-id $PARENT_ID"
+  RESOURCE_ID="dryrun-resource-id"
 else
   RESOURCE_ID=$(aws apigateway create-resource \
     --rest-api-id "$REST_API_ID" \
@@ -37,11 +38,12 @@ else
     --query 'id' --output text 2>/dev/null || true)
 fi
 
+# Fallback: retrieve existing resource if it already exists
 if [ -z "$RESOURCE_ID" ]; then
   echo "⚠️ {proxy+} already exists. Fetching existing resource ID..."
-  if [ "${DRY_RUN:-false}" = "true" ]; then
-    echo "🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id $REST_API_ID --query items[?pathPart=='{proxy+}'].id | [0] --output text"
-    RESOURCE_ID=""
+  if [ "$DRY_RUN" = "true" ]; then
+    echo "🧪 DRY RUN: Faking RESOURCE_ID fallback"
+    RESOURCE_ID="dryrun-resource-id"
   else
     RESOURCE_ID=$(aws apigateway get-resources \
       --rest-api-id "$REST_API_ID" \
@@ -55,9 +57,9 @@ if [ -z "$RESOURCE_ID" ]; then
   exit 1
 fi
 
-# Attach method and integration
-if [ "${DRY_RUN:-false}" = "true" ]; then
-  echo "🧪 DRY RUN: Skipping: aws apigateway put-method --rest-api-id $REST_API_ID --resource-id $RESOURCE_ID"
+# Attach ANY method
+if [ "$DRY_RUN" = "true" ]; then
+  echo "🧪 DRY RUN: Skipping: aws apigateway put-method"
 else
   aws apigateway put-method \
     --rest-api-id "$REST_API_ID" \
@@ -66,8 +68,9 @@ else
     --authorization-type "NONE" || true
 fi
 
-if [ "${DRY_RUN:-false}" = "true" ]; then
-  echo "🧪 DRY RUN: Skipping: aws apigateway put-integration --rest-api-id $REST_API_ID --resource-id $RESOURCE_ID"
+# Wire Lambda integration
+if [ "$DRY_RUN" = "true" ]; then
+  echo "🧪 DRY RUN: Skipping: aws apigateway put-integration"
 else
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
   aws apigateway put-integration \
@@ -79,8 +82,9 @@ else
     --uri arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:$LAMBDA_NAME/invocations || true
 fi
 
-if [ "${DRY_RUN:-false}" = "true" ]; then
-  echo "🧪 DRY RUN: Skipping: aws lambda add-permission --function-name $LAMBDA_NAME"
+# Add invoke permission
+if [ "$DRY_RUN" = "true" ]; then
+  echo "🧪 DRY RUN: Skipping: aws lambda add-permission"
 else
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
   aws lambda add-permission \
