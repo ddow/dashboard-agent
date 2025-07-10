@@ -54,7 +54,7 @@ for module in "${MODULES[@]}"; do
   MODULE_ID="${module%%_*}"  # Extract e.g. 01 from 01_package_lambda.sh
 
   # Check if this module is in the skip list
-if [[ "${SKIP_LIST[*]-}" =~ (^|[[:space:]])$MODULE_ID($|[[:space:]]) ]]; then
+  if [[ "${SKIP_LIST[*]-}" =~ (^|[[:space:]])$MODULE_ID($|[[:space:]]) ]]; then
     echo "⏭️  Skipping module: $module"
     continue
   fi
@@ -81,3 +81,37 @@ done
 
 echo ""
 echo "✅ All selected modules passed successfully."
+
+echo ""
+echo "🧪 Final check: Local /login test (no rebuild)"
+
+# Stop any leftover container
+docker rm -f local-fastapi >/dev/null 2>&1 || true
+
+echo "🚀 Starting local FastAPI server from $BUILD_DIR..."
+docker run --rm -d -v "$PWD/$BUILD_DIR":/app -p 8000:8000 --name local-fastapi \
+  public.ecr.aws/sam/build-python3.12 \
+  /bin/bash -c '
+    cd /app
+    pip install "uvicorn[standard]"
+    export PYTHONPATH=/app
+    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+  '
+
+echo "⏳ Waiting 3s for server to come online..."
+sleep 3
+
+echo "📡 Curling /login on http://localhost:8000"
+RESPONSE=$(curl -s -w "\nHTTP %{http_code}" -X POST http://localhost:8000/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=strngr12@gmail.com&password=Passw0rd\!")
+
+echo "$RESPONSE"
+
+echo ""
+echo "🪵 Container logs:"
+docker logs local-fastapi || echo "(no logs found)"
+
+echo ""
+echo "🧼 Cleaning up..."
+docker stop local-fastapi >/dev/null 2>&1 || true

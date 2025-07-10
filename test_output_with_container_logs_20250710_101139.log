@@ -1,0 +1,261 @@
+🧪 Running all deployment modules as tests...
+---------------------------------------------
+
+🔹 Testing module: 01_package_lambda.sh
+📦 Step 1: Packaging Lambda function...
+🧹 Cleaning old build directory...
+🐳 Installing Python dependencies using Docker...
++ /var/lang/bin/python3.12 -m pip install --upgrade pip
+Requirement already satisfied: pip in /var/lang/lib/python3.12/site-packages (25.0.1)
+Collecting pip
+  Using cached pip-25.1.1-py3-none-any.whl.metadata (3.6 kB)
+Using cached pip-25.1.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.0.1
+    Uninstalling pip-25.0.1:
+      Successfully uninstalled pip-25.0.1
+Successfully installed pip-25.1.1
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
++ /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
+Collecting fastapi==0.111.0 (from -r requirements-lambda.txt (line 1))
+  Downloading fastapi-0.111.0-py3-none-any.whl.metadata (25 kB)
+Collecting pydantic==2.6.4 (from -r requirements-lambda.txt (line 2))
+  Downloading pydantic-2.6.4-py3-none-any.whl.metadata (85 kB)
+Collecting boto3 (from -r requirements-lambda.txt (line 3))
+  Downloading boto3-1.39.4-py3-none-any.whl.metadata (6.6 kB)
+Collecting passlib==1.7.4 (from -r requirements-lambda.txt (line 5))
+  Downloading passlib-1.7.4-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting bcrypt==3.2.2 (from -r requirements-lambda.txt (line 6))
+  Downloading bcrypt-3.2.2-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_24_aarch64.whl.metadata (8.3 kB)
+Collecting Mangum (from -r requirements-lambda.txt (line 7))
+  Downloading mangum-0.19.0-py3-none-any.whl.metadata (3.6 kB)
+Collecting email-validator==2.0.0.post2 (from -r requirements-lambda.txt (line 8))
+  Downloading email_validator-2.0.0.post2-py3-none-any.whl.metadata (25 kB)
+Collecting python-jose[cryptography] (from -r requirements-lambda.txt (line 4))
+  Downloading python_jose-3.5.0-py2.py3-none-any.whl.metadata (5.5 kB)
+Collecting starlette<0.38.0,>=0.37.2 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading starlette-0.37.2-py3-none-any.whl.metadata (5.9 kB)
+Collecting typing-extensions>=4.8.0 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading typing_extensions-4.14.1-py3-none-any.whl.metadata (3.0 kB)
+Collecting fastapi-cli>=0.0.2 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading fastapi_cli-0.0.8-py3-none-any.whl.metadata (6.3 kB)
+Collecting httpx>=0.23.0 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting jinja2>=2.11.2 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting python-multipart>=0.0.7 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading python_multipart-0.0.20-py3-none-any.whl.metadata (1.8 kB)
+Collecting ujson!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0,>=4.0.1 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading ujson-5.10.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (9.3 kB)
+Collecting orjson>=3.2.1 (from fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading orjson-3.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (41 kB)
+Collecting uvicorn>=0.12.0 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading uvicorn-0.35.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting annotated-types>=0.4.0 (from pydantic==2.6.4->-r requirements-lambda.txt (line 2))
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.16.3 (from pydantic==2.6.4->-r requirements-lambda.txt (line 2))
+  Downloading pydantic_core-2.16.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.5 kB)
+Collecting cffi>=1.1 (from bcrypt==3.2.2->-r requirements-lambda.txt (line 6))
+  Downloading cffi-1.17.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (1.5 kB)
+Collecting dnspython>=2.0.0 (from email-validator==2.0.0.post2->-r requirements-lambda.txt (line 8))
+  Downloading dnspython-2.7.0-py3-none-any.whl.metadata (5.8 kB)
+Collecting idna>=2.0.0 (from email-validator==2.0.0.post2->-r requirements-lambda.txt (line 8))
+  Downloading idna-3.10-py3-none-any.whl.metadata (10 kB)
+Collecting anyio<5,>=3.4.0 (from starlette<0.38.0,>=0.37.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading anyio-4.9.0-py3-none-any.whl.metadata (4.7 kB)
+Collecting sniffio>=1.1 (from anyio<5,>=3.4.0->starlette<0.38.0,>=0.37.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting botocore<1.40.0,>=1.39.4 (from boto3->-r requirements-lambda.txt (line 3))
+  Downloading botocore-1.39.4-py3-none-any.whl.metadata (5.7 kB)
+Collecting jmespath<2.0.0,>=0.7.1 (from boto3->-r requirements-lambda.txt (line 3))
+  Downloading jmespath-1.0.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting s3transfer<0.14.0,>=0.13.0 (from boto3->-r requirements-lambda.txt (line 3))
+  Downloading s3transfer-0.13.0-py3-none-any.whl.metadata (1.7 kB)
+Collecting python-dateutil<3.0.0,>=2.1 (from botocore<1.40.0,>=1.39.4->boto3->-r requirements-lambda.txt (line 3))
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting urllib3!=2.2.0,<3,>=1.25.4 (from botocore<1.40.0,>=1.39.4->boto3->-r requirements-lambda.txt (line 3))
+  Downloading urllib3-2.5.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting six>=1.5 (from python-dateutil<3.0.0,>=2.1->botocore<1.40.0,>=1.39.4->boto3->-r requirements-lambda.txt (line 3))
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting ecdsa!=0.15 (from python-jose[cryptography]->-r requirements-lambda.txt (line 4))
+  Downloading ecdsa-0.19.1-py2.py3-none-any.whl.metadata (29 kB)
+Collecting rsa!=4.1.1,!=4.4,<5.0,>=4.0 (from python-jose[cryptography]->-r requirements-lambda.txt (line 4))
+  Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+Collecting pyasn1>=0.5.0 (from python-jose[cryptography]->-r requirements-lambda.txt (line 4))
+  Downloading pyasn1-0.6.1-py3-none-any.whl.metadata (8.4 kB)
+Collecting cryptography>=3.4.0 (from python-jose[cryptography]->-r requirements-lambda.txt (line 4))
+  Downloading cryptography-45.0.5-cp311-abi3-manylinux_2_34_aarch64.whl.metadata (5.7 kB)
+Collecting pycparser (from cffi>=1.1->bcrypt==3.2.2->-r requirements-lambda.txt (line 6))
+  Downloading pycparser-2.22-py3-none-any.whl.metadata (943 bytes)
+Collecting typer>=0.15.1 (from fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading typer-0.16.0-py3-none-any.whl.metadata (15 kB)
+Collecting rich-toolkit>=0.14.8 (from fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading rich_toolkit-0.14.8-py3-none-any.whl.metadata (999 bytes)
+Collecting certifi (from httpx>=0.23.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading certifi-2025.7.9-py3-none-any.whl.metadata (2.4 kB)
+Collecting httpcore==1.* (from httpx>=0.23.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.23.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting MarkupSafe>=2.0 (from jinja2>=2.11.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading MarkupSafe-3.0.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.0 kB)
+Collecting click>=8.1.7 (from rich-toolkit>=0.14.8->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
+Collecting rich>=13.7.1 (from rich-toolkit>=0.14.8->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading rich-14.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=13.7.1->rich-toolkit>=0.14.8->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading markdown_it_py-3.0.0-py3-none-any.whl.metadata (6.9 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich>=13.7.1->rich-toolkit>=0.14.8->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading pygments-2.19.2-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.7.1->rich-toolkit>=0.14.8->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Collecting shellingham>=1.3.0 (from typer>=0.15.1->fastapi-cli>=0.0.2->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+Collecting httptools>=0.6.3 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading httptools-0.6.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (3.6 kB)
+Collecting python-dotenv>=0.13 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
+Collecting pyyaml>=5.1 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading PyYAML-6.0.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (2.1 kB)
+Collecting uvloop>=0.15.1 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading uvloop-0.21.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.9 kB)
+Collecting watchfiles>=0.13 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading watchfiles-1.1.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.9 kB)
+Collecting websockets>=10.4 (from uvicorn[standard]>=0.12.0->fastapi==0.111.0->-r requirements-lambda.txt (line 1))
+  Downloading websockets-15.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.8 kB)
+Downloading fastapi-0.111.0-py3-none-any.whl (91 kB)
+Downloading pydantic-2.6.4-py3-none-any.whl (394 kB)
+Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 8.8 MB/s eta 0:00:00
+Downloading bcrypt-3.2.2-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_24_aarch64.whl (54 kB)
+Downloading email_validator-2.0.0.post2-py3-none-any.whl (31 kB)
+Downloading pydantic_core-2.16.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 12.5 MB/s eta 0:00:00
+Downloading starlette-0.37.2-py3-none-any.whl (71 kB)
+Downloading anyio-4.9.0-py3-none-any.whl (100 kB)
+Downloading boto3-1.39.4-py3-none-any.whl (139 kB)
+Downloading botocore-1.39.4-py3-none-any.whl (13.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.8/13.8 MB 4.3 MB/s eta 0:00:00
+Downloading jmespath-1.0.1-py3-none-any.whl (20 kB)
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Downloading s3transfer-0.13.0-py3-none-any.whl (85 kB)
+Downloading urllib3-2.5.0-py3-none-any.whl (129 kB)
+Downloading python_jose-3.5.0-py2.py3-none-any.whl (34 kB)
+Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+Downloading mangum-0.19.0-py3-none-any.whl (17 kB)
+Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Downloading cffi-1.17.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (478 kB)
+Downloading cryptography-45.0.5-cp311-abi3-manylinux_2_34_aarch64.whl (4.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 2.1 MB/s eta 0:00:00
+Downloading dnspython-2.7.0-py3-none-any.whl (313 kB)
+Downloading ecdsa-0.19.1-py2.py3-none-any.whl (150 kB)
+Downloading fastapi_cli-0.0.8-py3-none-any.whl (10 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading idna-3.10-py3-none-any.whl (70 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading MarkupSafe-3.0.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (24 kB)
+Downloading orjson-3.10.18-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (136 kB)
+Downloading pyasn1-0.6.1-py3-none-any.whl (83 kB)
+Downloading python_multipart-0.0.20-py3-none-any.whl (24 kB)
+Downloading rich_toolkit-0.14.8-py3-none-any.whl (24 kB)
+Downloading click-8.2.1-py3-none-any.whl (102 kB)
+Downloading rich-14.0.0-py3-none-any.whl (243 kB)
+Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.8 MB/s eta 0:00:00
+Downloading markdown_it_py-3.0.0-py3-none-any.whl (87 kB)
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading typer-0.16.0-py3-none-any.whl (46 kB)
+Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Downloading typing_extensions-4.14.1-py3-none-any.whl (43 kB)
+Downloading ujson-5.10.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (51 kB)
+Downloading uvicorn-0.35.0-py3-none-any.whl (66 kB)
+Downloading httptools-0.6.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (508 kB)
+Downloading python_dotenv-1.1.1-py3-none-any.whl (20 kB)
+Downloading PyYAML-6.0.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (739 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 739.2/739.2 kB 3.2 MB/s eta 0:00:00
+Downloading uvloop-0.21.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (4.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.6/4.6 MB 3.5 MB/s eta 0:00:00
+Downloading watchfiles-1.1.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (450 kB)
+Downloading websockets-15.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (183 kB)
+Downloading certifi-2025.7.9-py3-none-any.whl (159 kB)
+Downloading pycparser-2.22-py3-none-any.whl (117 kB)
+Installing collected packages: passlib, websockets, uvloop, urllib3, ujson, typing-extensions, sniffio, six, shellingham, pyyaml, python-multipart, python-dotenv, pygments, pycparser, pyasn1, orjson, mdurl, MarkupSafe, jmespath, idna, httptools, h11, dnspython, click, certifi, annotated-types, uvicorn, rsa, python-dateutil, pydantic-core, markdown-it-py, Mangum, jinja2, httpcore, email-validator, ecdsa, cffi, anyio, watchfiles, starlette, rich, python-jose, pydantic, httpx, cryptography, botocore, bcrypt, typer, s3transfer, rich-toolkit, fastapi-cli, boto3, fastapi
+
+Successfully installed Mangum-0.19.0 MarkupSafe-3.0.2 annotated-types-0.7.0 anyio-4.9.0 bcrypt-3.2.2 boto3-1.39.4 botocore-1.39.4 certifi-2025.7.9 cffi-1.17.1 click-8.2.1 cryptography-45.0.5 dnspython-2.7.0 ecdsa-0.19.1 email-validator-2.0.0.post2 fastapi-0.111.0 fastapi-cli-0.0.8 h11-0.16.0 httpcore-1.0.9 httptools-0.6.4 httpx-0.28.1 idna-3.10 jinja2-3.1.6 jmespath-1.0.1 markdown-it-py-3.0.0 mdurl-0.1.2 orjson-3.10.18 passlib-1.7.4 pyasn1-0.6.1 pycparser-2.22 pydantic-2.6.4 pydantic-core-2.16.3 pygments-2.19.2 python-dateutil-2.9.0.post0 python-dotenv-1.1.1 python-jose-3.5.0 python-multipart-0.0.20 pyyaml-6.0.2 rich-14.0.0 rich-toolkit-0.14.8 rsa-4.9.1 s3transfer-0.13.0 shellingham-1.5.4 six-1.17.0 sniffio-1.3.1 starlette-0.37.2 typer-0.16.0 typing-extensions-4.14.1 ujson-5.10.0 urllib3-2.5.0 uvicorn-0.35.0 uvloop-0.21.0 watchfiles-1.1.0 websockets-15.0.1
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+📦 Creating deployment package...
+/Users/danieldow/dev/dashboard-agent
+✅ Lambda package ready: dashboard-app/backend/dashboard-backend.zip
+✅ 01_package_lambda.sh succeeded
+
+
+🔹 Testing module: 02_create_iam_role.sh
+🔐 Step 2: Ensuring IAM role exists: DashboardLambdaRole
+🧪 DRY RUN: Skipping: aws iam get-role --role-name DashboardLambdaRole
+🔗 Attaching policy to IAM role...
+🧪 DRY RUN: Skipping: aws iam attach-role-policy --role-name DashboardLambdaRole --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+✅ 02_create_iam_role.sh succeeded
+
+
+🔹 Testing module: 03_deploy_lambda.sh
+🚀 Step 3: Deploying Lambda: dashboard-backend
+🧪 DRY RUN: Skipping: aws lambda get-function --function-name dashboard-backend
+✅ Lambda deployed.
+✅ 03_deploy_lambda.sh succeeded
+
+
+🔹 Testing module: 04_setup_api_gateway.sh
+🌐 Step 4: Setting up API Gateway: dashboard-api
+🧪 DRY RUN: Skipping: aws apigateway get-rest-apis --query items[?name=='dashboard-api'].id --output text
+🧪 DRY RUN: Skipping: aws apigateway create-rest-api --name dashboard-api
+🆕 Created API Gateway: 
+🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id  --query items[0].id --output text
+✅ 04_setup_api_gateway.sh succeeded
+
+
+🔹 Testing module: 05_wire_proxy_route.sh
+🔗 Step 5: Wiring {proxy+} route...
+🧪 DRY RUN: Faking PARENT_ID
+🧪 DRY RUN: Skipping: aws apigateway create-resource --parent-id dryrun-parent-id
+🧪 DRY RUN: Skipping: aws apigateway put-method
+🧪 DRY RUN: Skipping: aws apigateway put-integration
+🧪 DRY RUN: Skipping: aws lambda add-permission
+✅ Wired {proxy+} route successfully.
+✅ 05_wire_proxy_route.sh succeeded
+
+
+🔹 Testing module: 06_wire_public_proxy.sh
+📁 Step 6: Wiring /public/{proxy+} route...
+🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id 0g3zmg5s63 --query items[0].id --output text
+🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id 0g3zmg5s63 --query items[?path=='/public'].id --output text
+🆕 Creating /public base resource...
+🧪 DRY RUN: Skipping: aws apigateway create-resource --rest-api-id 0g3zmg5s63 --parent-id  --path-part public
+🧪 DRY RUN: Skipping: aws apigateway get-resources --rest-api-id 0g3zmg5s63 --query items[?path=='/public/{proxy+}'].id --output text
+🆕 Creating /public/{proxy+} resource...
+🧪 DRY RUN: Skipping: aws apigateway create-resource --rest-api-id 0g3zmg5s63 --parent-id  --path-part {proxy+}
+🧪 DRY RUN: Skipping: aws apigateway put-method --rest-api-id 0g3zmg5s63 --resource-id 
+🧪 DRY RUN: Skipping: aws apigateway put-integration --rest-api-id 0g3zmg5s63 --resource-id 
+🧪 DRY RUN: Skipping: aws lambda add-permission --function-name dashboard-backend
+✅ Wired /public/{proxy+} route successfully.
+✅ 06_wire_public_proxy.sh succeeded
+
+
+🔹 Testing module: 07_deploy_api_gateway.sh
+🚀 Step 7: Deploying API Gateway...
+🧪 DRY RUN: Skipping: aws apigateway create-deployment --rest-api-id 0g3zmg5s63 --stage-name prod
+🌎 API URL: https://0g3zmg5s63.execute-api.us-east-1.amazonaws.com/prod
+✅ 07_deploy_api_gateway.sh succeeded
+
+
+✅ All selected modules passed successfully.
+
+🧪 Final check: Local /login test (no rebuild)
+🚀 Starting local FastAPI server from dashboard-app/backend/lambda-build...
+aa81f6c4084d0d65cc730d48f08ba6ed2566b7640d2b0d10ca1c7916df5fa177
+⏳ Waiting 3s for server to come online...
+📡 Curling /login on http://localhost:8000
