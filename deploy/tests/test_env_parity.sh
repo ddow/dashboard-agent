@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure tests never hit AWS
+export DRY_RUN=true
+
 echo "🔍 Testing local Docker build environment against AWS Lambda baseline..."
 echo "---------------------------------------------------------------"
 
