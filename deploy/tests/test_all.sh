@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure tests never hit AWS
+export DRY_RUN=true
+
 echo "🧪 Running all deployment modules as tests..."
 echo "---------------------------------------------"
 
