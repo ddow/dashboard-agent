@@ -24,9 +24,10 @@ app = FastAPI(
 @app.middleware("http")
 async def log_all_requests(request: Request, call_next):
     print(f"➡️ {request.method} {request.url.path}")
+    breakpoint()  # Inspection point: before handling request
     response = await call_next(request)
+    print("DEBUG response status:", response.status_code)
     return response
-
 
 # ✅ CORS middleware
 app.add_middleware(
@@ -42,6 +43,7 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 
 @app.get("/login")
 def serve_login():
+    print("DEBUG serve_login")
     return FileResponse("public/index.html")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")  # ✅ needs leading slash
@@ -50,18 +52,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")  # ✅ needs leading sla
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     email = form_data.username.lower()
     print(f"📨 Login attempt: {email}")
+    breakpoint()  # Inspection point: before retrieving user
     user = get_user(email)
     print(f"🔍 Found user: {user}")
     if not user or not verify_password(form_data.password, user["password"]):
         print("❌ Invalid credentials")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     access_token = create_access_token(data={"sub": email})
-    print("✅ Login successful")
+    print("✅ Login successful, token generated")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/dashboard")
 def read_dashboard(request: Request, token: str = Depends(oauth2_scheme)):
+    print("DEBUG read_dashboard entry, token:", token)
+    breakpoint()  # Inspection point: before decoding token
     if not token:
         auth_header = request.headers.get("authorization")
         if auth_header and auth_header.startswith("Bearer "):
@@ -69,6 +74,7 @@ def read_dashboard(request: Request, token: str = Depends(oauth2_scheme)):
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing")
     email = decode_access_token(token)
+    print("DEBUG decoded email:", email)
     user = get_user(email)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
@@ -84,6 +90,7 @@ from fastapi import Path
 @app.get("/public/{filename:path}")
 def serve_static(filename: str = Path(...)):
     full_path = f"public/{filename}"
+    print("DEBUG serve_static for:", full_path)
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(full_path)
