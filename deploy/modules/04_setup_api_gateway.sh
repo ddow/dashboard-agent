@@ -1,4 +1,12 @@
 #!/bin/bash
+# Default environment variables
+BUILD_DIR=${BUILD_DIR:-dashboard-app/backend/lambda-build}
+ZIP_FILE=${ZIP_FILE:-dashboard-app/backend/dashboard-backend.zip}
+LAMBDA_NAME=${LAMBDA_NAME:-dashboard-backend}
+ROLE_NAME=${ROLE_NAME:-DashboardLambdaRole}
+POLICY_ARN=${POLICY_ARN:-arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess}
+API_NAME=${API_NAME:-dashboard-api}
+
 set -euo pipefail
 
 # Allow skipping AWS calls when DRY_RUN=true
