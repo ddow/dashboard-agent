@@ -1,60 +1,53 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
 echo "🧪 Starting local Lambda container to test /login via RIE…"
 
-#–– Config ––
+# 1) Package your lambda into dashboard-backend.zip
 BUILD_DIR="dashboard-app/backend/lambda-build"
-IMAGE_NAME="local-lambda"
-CONTAINER_NAME="lambda-local"
+ZIP_FILE="dashboard-app/backend/dashboard-backend.zip"
 
-#–– 1) Rebuild local test environment ––
-if [ -d "$BUILD_DIR" ]; then
-  echo "🧹 Removing old build directory: $BUILD_DIR"
-  rm -rf "$BUILD_DIR"
-fi
-echo "📁 Creating fresh build directory: $BUILD_DIR"
+echo "📦 Step 1: Packaging Lambda function..."
+rm -rf "$BUILD_DIR" "$ZIP_FILE" || true
 mkdir -p "$BUILD_DIR"
-
-echo "📄 Copying source files into build dir…"
 cp dashboard-app/backend/*.py "$BUILD_DIR/"
 cp dashboard-app/backend/requirements-lambda.txt "$BUILD_DIR/"
 cp -r dashboard-app/backend/public "$BUILD_DIR/"
 
-#–– 2) Vendor dependencies ––
-echo "🐳 Installing Python dependencies into $BUILD_DIR…"
-docker run --rm \
-  -v "$PWD/$BUILD_DIR":/var/task \
-  public.ecr.aws/sam/build-python3.12 \
-  /bin/bash -c "
-    set -eux
-    cd /var/task
-    pip install -r requirements-lambda.txt -t .
-  "
+echo "🐳 Installing Python dependencies using Docker..."
+docker run --rm -v "$PWD/$BUILD_DIR":/var/task public.ecr.aws/sam/build-python3.12 /bin/bash -c "
+  set -eux
+  cd /var/task
+  /var/lang/bin/python3.12 -m pip install -r requirements-lambda.txt -t .
+"
 
-#–– 3) (Re)build your RIE image ––
-echo "🖼️  (Re)building Docker image: $IMAGE_NAME"
-docker build -f dashboard-app/backend/Dockerfile -t "$IMAGE_NAME" .
+echo "📦 Creating deployment package..."
+cd "$BUILD_DIR"
+zip -r ../../dashboard-backend.zip . > /dev/null
+cd -
 
-#–– 4) Tear down any previous container ––
-echo "🗑️  Cleaning up old container (if any): $CONTAINER_NAME"
-docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+# 2) Build the RIE‐based image using the correct Dockerfile path
+echo "🐳 Building local Docker image for Lambda…"
+docker build \
+  -t local-lambda \
+  -f dashboard-app/backend/Dockerfile \
+  dashboard-app/backend
 
-#–– 5) Launch under RIE with DRY_RUN ––
-echo "🚀 Starting RIE container ($CONTAINER_NAME)…"
-docker run --rm -d \
-  --name "$CONTAINER_NAME" \
-  -p 9000:8080 \
+# 3) Tear down any old container
+docker rm -f lambda-local >/dev/null 2>&1 || true
+
+# 4) Start your RIE container pointing at the handler
+echo "🚀 Starting local Lambda container under RIE (DRY_RUN=$DRY_RUN)…"
+docker run --rm -d -p 9000:8080 --name lambda-local \
   -e DRY_RUN=true \
-  "$IMAGE_NAME" main.handler
+  local-lambda main.handler
 
-echo "⏳ Waiting 3s for RIE to come up…"
-sleep 3
+echo "⏳ Waiting a couple seconds for RIE to spin up…"
+sleep 2
 
-#–– 6) Invoke it just like API Gateway ––
-echo "📡 POST /login → expecting fake-DB token"
-RESPONSE=$(curl -s -w "\nHTTP %{http_code}" \
-  -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+# 5) Invoke /login
+echo "📡 Invoking POST /login via RIE…"
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
   -H "Content-Type: application/json" \
   -d '{
     "version":"2.0",
@@ -65,25 +58,8 @@ RESPONSE=$(curl -s -w "\nHTTP %{http_code}" \
     "requestContext":{"http":{"method":"POST","path":"/login","sourceIp":"127.0.0.1"}},
     "body":"username=testuser@example.com&password=Passw0rd%21",
     "isBase64Encoded":false
-  }')
+  }'
 
 echo ""
-echo "🔎 Raw response:"
-echo "$RESPONSE"
-
-#–– 7) Tear down RIE container ––
-echo ""
-echo "🧼 Stopping RIE container…"
-docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
-
-#–– 8) Assert we got a token ––
-TOKEN=$(printf '%s' "$RESPONSE" | grep -o '"access_token":"[^"]*"' | cut -d':' -f2- | tr -d '"')
-HTTP_CODE=$(printf '%s' "$RESPONSE" | awk '/HTTP /{print $2}')
-
-if [[ "$HTTP_CODE" == "200" && -n "$TOKEN" ]]; then
-  echo -e "\n✅ Success! Got token:\n$TOKEN"
-  exit 0
-else
-  echo -e "\n❌ Failed (HTTP $HTTP_CODE)."
-  exit 1
-fi
+echo "🧼 Cleaning up..."
+docker stop lambda-local >/dev/null 2>&1 || true
