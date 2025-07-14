@@ -1,96 +1,54 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-echo "🔥 Starting full backend teardown..."
+STACK_NAME="dashboard-prod"
+REGION="us-east-1"
 
-# Config
-DRY_RUN=${DRY_RUN:-false}
-DELETE_BUCKET=${DELETE_BUCKET:-false}
+echo "🔎 Fetching IAM role name for stack '$STACK_NAME'…"
+ROLE_NAME=$(aws cloudformation describe-stack-resources \
+  --stack-name "$STACK_NAME" \
+  --region "$REGION" \
+  --query "StackResources[?LogicalResourceId=='DashboardFunctionRole'].PhysicalResourceId" \
+  --output text)
 
-LAMBDA_NAME="dashboard-backend"
-ROLE_NAME="DashboardLambdaRole"
-API_NAME="dashboard-api"
-BUCKET_NAME="danieldow-dashboard-assets"
-DOCKER_CONTAINER="local-fastapi"
-BUILD_DIR="dashboard-app/backend/lambda-build"
-ZIP_FILE="dashboard-app/backend/dashboard-backend.zip"
-
-# 🧨 Lambda
-echo "🧨 Checking Lambda function: $LAMBDA_NAME"
-if aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; then
-  if [ "$DRY_RUN" = "true" ]; then
-    echo "🧪 DRY_RUN: Would delete Lambda function: $LAMBDA_NAME"
-  else
-    aws lambda delete-function --function-name "$LAMBDA_NAME"
-    echo "✅ Deleted Lambda function"
-  fi
+if [[ -z "$ROLE_NAME" || "$ROLE_NAME" == "None" ]]; then
+  echo "⚠️  Could not find DashboardFunctionRole in stack '$STACK_NAME'. Skipping IAM cleanup."
 else
-  echo "ℹ️ Lambda function not found."
+  echo "✅ Found role: $ROLE_NAME"
+
+  echo "➖ Detaching AWSLambdaBasicExecutionRole from $ROLE_NAME"
+  aws iam detach-role-policy \
+    --role-name "$ROLE_NAME" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
+    --region "$REGION" || true
+
+  echo "🗑️  Deleting inline policies from $ROLE_NAME"
+  for P in $(aws iam list-role-policies \
+               --role-name "$ROLE_NAME" \
+               --region "$REGION" \
+               --query 'PolicyNames[]' \
+               --output text); do
+    echo "   • Deleting $P"
+    aws iam delete-role-policy \
+      --role-name "$ROLE_NAME" \
+      --policy-name "$P" \
+      --region "$REGION" || true
+  done
+
+  echo "🗑️  Deleting role $ROLE_NAME"
+  aws iam delete-role \
+    --role-name "$ROLE_NAME" \
+    --region "$REGION" || true
 fi
 
-# 🔐 IAM Role
-if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
-  if [ "$DRY_RUN" = "true" ]; then
-    echo "🧪 DRY_RUN: Would detach and delete IAM role: $ROLE_NAME"
-  else
-    aws iam detach-role-policy --role-name "$ROLE_NAME" \
-      --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess || true
-    aws iam delete-role --role-name "$ROLE_NAME"
-    echo "✅ Deleted IAM role"
-  fi
-else
-  echo "ℹ️ IAM role not found."
-fi
+echo "➖ Deleting CloudFormation stack $STACK_NAME"
+aws cloudformation delete-stack \
+  --stack-name "$STACK_NAME" \
+  --region "$REGION"
 
-# 🌐 API Gateway
-REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME'].id" --output text)
-if [ -n "$REST_API_ID" ] && [ "$REST_API_ID" != "None" ]; then
-  if [ "$DRY_RUN" = "true" ]; then
-    echo "🧪 DRY_RUN: Would delete API Gateway: $API_NAME ($REST_API_ID)"
-  else
-    aws apigateway delete-rest-api --rest-api-id "$REST_API_ID"
-    echo "✅ Deleted API Gateway"
-  fi
-else
-  echo "ℹ️ API Gateway not found."
-fi
+echo "⏳ Waiting for stack to be fully deleted…"
+aws cloudformation wait stack-delete-complete \
+  --stack-name "$STACK_NAME" \
+  --region "$REGION"
 
-# 🪣 Optional S3 bucket
-if [ "$DELETE_BUCKET" = "true" ]; then
-  if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-    if [ "$DRY_RUN" = "true" ]; then
-      echo "🧪 DRY_RUN: Would delete S3 bucket: $BUCKET_NAME"
-    else
-      echo "🪣 Emptying and deleting S3 bucket..."
-      aws s3 rm "s3://$BUCKET_NAME" --recursive || true
-      aws s3api delete-bucket --bucket "$BUCKET_NAME"
-      echo "✅ Deleted S3 bucket"
-    fi
-  else
-    echo "ℹ️ S3 bucket not found."
-  fi
-fi
-
-# 🐳 Docker cleanup
-echo "🐳 Checking Docker container: $DOCKER_CONTAINER"
-if docker ps -a --format '{{.Names}}' | grep -q "$DOCKER_CONTAINER"; then
-  if [ "$DRY_RUN" = "true" ]; then
-    echo "🧪 DRY_RUN: Would stop Docker container: $DOCKER_CONTAINER"
-  else
-    docker rm -f "$DOCKER_CONTAINER" >/dev/null
-    echo "✅ Removed Docker container: $DOCKER_CONTAINER"
-  fi
-else
-  echo "ℹ️ Docker container not running."
-fi
-
-# 🧼 Local cleanup
-echo "🧼 Cleaning local artifacts..."
-if [ "$DRY_RUN" = "true" ]; then
-  echo "🧪 DRY_RUN: Would remove: $BUILD_DIR and $ZIP_FILE"
-else
-  rm -rf "$BUILD_DIR" "$ZIP_FILE"
-  echo "✅ Removed local build directory and zip"
-fi
-
-echo "✅ Full teardown complete."
+echo "✅ Stack '$STACK_NAME' torn down successfully."

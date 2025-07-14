@@ -14,3 +14,6 @@ dashboard-app/build/
 # dashboard-app/build/static/css/main.2ad592c5.css.map
 *.zip
 *.log
+
+# SAM “packaged” artifacts
+packaged.yml

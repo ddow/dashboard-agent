@@ -1,34 +1,70 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Default: dashboard.danieldow.com
+    Description: S3 bucket for Lambda ZIP artifacts
+  DashboardUsersTableName:
+    Type: String
+    Default: dashboard-users
+    Description: DynamoDB table name for users
+  DanieldowCertArn:
+    Type: String
+    Default: arn:aws:acm:us-east-1:573978064410:certificate/a34a1a2a-1ef7-4fa4-83a5-4ffd834efbf1
+    Description: ACM certificate ARN for dashboard.danieldow.com
+
 Globals:
   Function:
-    Runtime: python3.12
-    Timeout: 10
+    Timeout: 30
     Environment:
       Variables:
-        DRY_RUN: "true"          # or false, as you like
-        AWS_DEFAULT_REGION: us-east-1
+        DASHBOARD_USERS_TABLE: !Ref DashboardUsersTableName
+        DRY_RUN: "false"
 
 Resources:
   DashboardFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: main.handler      # matches your Dockerfile CMD and Mangum handler
-      CodeUri: dashboard-app/backend/
+      CodeUri: dashboard-app/dashboard-backend.zip
+      Handler: main.handler
+      Runtime: python3.12
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DashboardUsersTableName
       Events:
         Login:
           Type: Api
           Properties:
             Path: /login
             Method: post
-        ServeLogin:
+        Dashboard:
           Type: Api
           Properties:
-            Path: /login
+            Path: /dashboard
             Method: get
-        StaticFiles:
-          Type: Api
-          Properties:
-            Path: /public/{proxy+}
-            Method: get
+
+  DanieldowDomain:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: dashboard.danieldow.com
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      RegionalCertificateArn: !Ref DanieldowCertArn
+
+  DanieldowBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref DanieldowDomain
+      RestApiId: !Ref ServerlessRestApi
+      Stage: Prod
+
+Outputs:
+  ApiEndpoint:
+    Description: Default API Gateway endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  DanieldowCustomDomain:
+    Description: “dashboard.danieldow.com custom domain”
+    Value: !Ref DanieldowDomain
