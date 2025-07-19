@@ -8,7 +8,6 @@ Globals:
     Environment:
       Variables:
         DRY_RUN: "true"          # or false, as you like
-        AWS_DEFAULT_REGION: us-east-1
 
 Resources:
   DashboardFunction:
