@@ -14,10 +14,16 @@ DRY_RUN=${DRY_RUN:-false}
 
 echo "🔗 Step 5: Wiring {proxy+} route..."
 
-# Ensure REST_API_ID is set
+# Ensure REST_API_ID is set (auto‑detect from CF if missing)
 if [ -z "${REST_API_ID:-}" ]; then
-  echo "❌ REST_API_ID is not set."
-  exit 1
+  echo "🔧 REST_API_ID not set, fetching from CloudFormation…"
+  REST_API_ID=$(aws cloudformation describe-stacks \
+    --stack-name dashboard-prod \
+    --region us-east-1 \
+    --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+    --output text | awk -F'[/.]' '{print $4}')
+  echo "🔧 REST_API_ID auto‑detected: $REST_API_ID"
+  export REST_API_ID
 fi
 
 # Get or set PARENT_ID (root resource)
