@@ -21,7 +21,7 @@ else:
     TABLE_NAME = os.getenv("DASHBOARD_USERS_TABLE", "dashboard-users")
     dynamodb = boto3.resource(
         "dynamodb",
-        region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+        region_name=os.getenv("AWS_REGION", "us-east-1")
     )
     users_table = dynamodb.Table(TABLE_NAME)
 
