@@ -2,6 +2,9 @@
 
 FROM public.ecr.aws/lambda/python:3.12
 
+# Default secret key; override in your deployment environment
+ENV SECRET_KEY=change-me
+
 # Copy the ZIP you build locally into the container
 # (make sure this path is correct relative to where you run `docker build`)
 COPY dashboard-app/dashboard-backend.zip /var/task/package.zip
