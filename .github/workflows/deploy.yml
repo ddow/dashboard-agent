@@ -32,4 +32,4 @@ jobs:
           aws-region: us-east-1
 
       - name: 🚀 Run deploy script
-        run: bash ./deploy_backend.sh
+        run: bash ./deploy/deploy_backend.sh
