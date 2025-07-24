@@ -12,6 +12,9 @@ VERBOSE=false
 QUIET=false
 SKIP_LIST=()
 
+# Track if AWS CLI is available
+AWS_AVAILABLE=true
+
 # Parse flags
 for arg in "$@"; do
   case $arg in
@@ -30,6 +33,12 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# Detect aws CLI and warn if missing
+if ! command -v aws >/dev/null 2>&1; then
+  echo "⚠️  'aws' command not found. AWS-related modules will be skipped."
+  AWS_AVAILABLE=false
+fi
 
 # Shared config
 export LAMBDA_NAME="dashboard-backend"
@@ -50,12 +59,28 @@ MODULES=(
   "07_deploy_api_gateway.sh"
 )
 
+# Modules that require AWS CLI
+AWS_MODULES=(
+  "02_create_iam_role.sh"
+  "03_deploy_lambda.sh"
+  "04_setup_api_gateway.sh"
+  "05_wire_proxy_route.sh"
+  "06_wire_public_proxy.sh"
+  "07_deploy_api_gateway.sh"
+)
+
 for module in "${MODULES[@]}"; do
   MODULE_ID="${module%%_*}"  # Extract e.g. 01 from 01_package_lambda.sh
 
   # Skip if requested
   if [[ "${SKIP_LIST[*]-}" =~ (^|[[:space:]])$MODULE_ID($|[[:space:]]) ]]; then
     echo "⏭️  Skipping module: $module"
+    continue
+  fi
+
+  # Skip AWS modules if aws CLI is missing
+  if ! $AWS_AVAILABLE && [[ " ${AWS_MODULES[*]} " == *" $module "* ]]; then
+    echo "⏭️  Skipping module (aws CLI not found): $module"
     continue
   fi
 
