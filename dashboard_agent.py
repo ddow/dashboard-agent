@@ -86,7 +86,7 @@ def deploy_backend():
     """Deploy backend to AWS Lambda & API Gateway"""
     click.echo("🚀 Deploying backend to Lambda & API Gateway...")
     try:
-        subprocess.run(["./deploy_backend.sh"], check=True)
+        subprocess.run(["deploy/deploy_backend.sh"], check=True)
         click.echo("✅ Backend deployed.")
     except subprocess.CalledProcessError as e:
         click.echo(f"❌ Backend deployment failed: {e}")
