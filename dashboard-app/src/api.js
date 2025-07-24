@@ -1,6 +1,8 @@
 // dashboard-app/src/api.js
 
-const API_BASE_URL = "https://8d2wdfciz5.execute-api.us-east-1.amazonaws.com/prod"; // <-- Update if API changes
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  "https://8d2wdfciz5.execute-api.us-east-1.amazonaws.com/prod"; // <-- Update if API changes
 
 export async function login(email, password) {
   const response = await fetch(`${API_BASE_URL}/login`, {
