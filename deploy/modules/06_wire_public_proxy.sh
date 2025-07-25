@@ -50,6 +50,10 @@ else
     --rest-api-id "$REST_API_ID" \
     --query "items[?path=='/public'].id" \
     --output text)
+  # Normalize 'None' to empty string for easier checks
+  if [ "$PUBLIC_ID" = "None" ]; then
+    PUBLIC_ID=""
+  fi
 fi
 
 if [ -z "$PUBLIC_ID" ]; then
@@ -61,7 +65,17 @@ if [ -z "$PUBLIC_ID" ]; then
       --rest-api-id "$REST_API_ID" \
       --parent-id "$PARENT_ID" \
       --path-part "public" \
-      --query 'id' --output text)
+      --query 'id' --output text 2>/dev/null || true)
+    if [ -z "$PUBLIC_ID" ] || [ "$PUBLIC_ID" = "None" ]; then
+      echo "⚠️  /public already exists. Fetching existing resource ID..."
+      PUBLIC_ID=$(aws apigateway get-resources \
+        --rest-api-id "$REST_API_ID" \
+        --query "items[?path=='/public'].id | [0]" \
+        --output text)
+      if [ "$PUBLIC_ID" = "None" ]; then
+        PUBLIC_ID=""
+      fi
+    fi
   fi
 fi
 
@@ -74,6 +88,9 @@ else
     --rest-api-id "$REST_API_ID" \
     --query "items[?path=='/public/{proxy+}'].id" \
     --output text)
+  if [ "$PUBLIC_PROXY_ID" = "None" ]; then
+    PUBLIC_PROXY_ID=""
+  fi
 fi
 
 if [ -z "$PUBLIC_PROXY_ID" ]; then
@@ -85,7 +102,17 @@ if [ -z "$PUBLIC_PROXY_ID" ]; then
       --rest-api-id "$REST_API_ID" \
       --parent-id "$PUBLIC_ID" \
       --path-part "{proxy+}" \
-      --query 'id' --output text)
+      --query 'id' --output text 2>/dev/null || true)
+    if [ -z "$PUBLIC_PROXY_ID" ] || [ "$PUBLIC_PROXY_ID" = "None" ]; then
+      echo "⚠️  /public/{proxy+} already exists. Fetching existing resource ID..."
+      PUBLIC_PROXY_ID=$(aws apigateway get-resources \
+        --rest-api-id "$REST_API_ID" \
+        --query "items[?path=='/public/{proxy+}'].id | [0]" \
+        --output text)
+      if [ "$PUBLIC_PROXY_ID" = "None" ]; then
+        PUBLIC_PROXY_ID=""
+      fi
+    fi
   fi
 else
   echo "✅ /public/{proxy+} already exists."
