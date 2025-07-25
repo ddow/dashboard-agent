@@ -67,22 +67,25 @@ bash deploy/tests/test_env_parity.sh   # optional environment parity check
 
 ### Docker in CI pipelines
 
-On GitHub Actions Docker is available by default on the `ubuntu-latest`
-runner. If you use a different environment or Docker is disabled, install it at
-the start of your workflow before any commands that require Docker:
+GitHub's hosted runners already ship with Docker and the daemon running so you
+can run Docker commands without any extra setup. A typical workflow uses the
+standard `ubuntu-latest` runner:
 
 ```yaml
-steps:
-  - name: Install Docker
-    run: |
-      sudo apt-get update
-      sudo apt-get install --yes docker.io
-      sudo systemctl start docker
-      sudo usermod -aG docker $USER
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Add Docker commands here
 ```
 
-After installing you can confirm Docker works with `docker --version` or by
-running `docker run hello-world`.
+Avoid the `container:` option if you need Docker in the job—nested Docker is
+not supported on the hosted runners. For advanced features such as Buildx use
+`docker/setup-buildx-action` instead of installing Docker yourself.
+
+If you encounter "Error initializing network controller" or similar issues,
+ensure the runner has networking privileges or switch to a self-hosted runner.
 
 ### Local development
 
