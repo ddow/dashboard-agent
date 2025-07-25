@@ -21,7 +21,7 @@ if [ -z "${REST_API_ID:-}" ]; then
     --stack-name dashboard-prod \
     --region us-east-1 \
     --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
-    --output text | awk -F'[/.]' '{print $4}')
+    --output text | awk -F'[./]' '{print $3}')
   echo "🔧 REST_API_ID auto‑detected: $REST_API_ID"
   export REST_API_ID
 fi
