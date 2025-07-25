@@ -148,3 +148,6 @@ If the command returns `x86_64`, delete the function or rerun
 `03_deploy_lambda.sh` with `PACKAGE_ARCH=arm64`. The script detects an
 architecture mismatch and recreates the function with the correct architecture.
 
+After rerunning with the proper architecture, the deploy script replaces the
+function automatically so dependencies match the new runtime.
+
