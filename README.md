@@ -138,16 +138,13 @@ pip install -r requirements-lambda.txt \
 
 Re-deploy the updated ZIP to resolve the runtime import error.
 
-If the function already exists with the wrong architecture run:
+If the function already exists you can check its architecture with:
 
 ```bash
 aws lambda get-function-configuration --function-name YOUR_NAME --query 'Architectures[0]'
 ```
 
-If it reports `x86_64` you can remove the function or let `03_deploy_lambda.sh`
-recreate it automatically when `PACKAGE_ARCH=arm64`.
-
-The deploy script checks the existing architecture and deletes the function if
-it differs from `PACKAGE_ARCH`, so subsequent runs create the Lambda with the
-correct architecture.
+If the command returns `x86_64`, delete the function or just rerun
+`03_deploy_lambda.sh` after setting `PACKAGE_ARCH=arm64`. The script checks the
+architecture and will recreate the Lambda when it differs from `PACKAGE_ARCH`.
 
