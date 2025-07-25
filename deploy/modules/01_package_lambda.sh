@@ -7,7 +7,8 @@ BUILD_DIR=${BUILD_DIR:-dashboard-app/backend/lambda-build}
 ZIP_FILE=${ZIP_FILE:-dashboard-app/dashboard-backend.zip}
 DRY_RUN=${DRY_RUN:-false}
 # Target architecture for dependency build (x86_64 or arm64)
-PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}
+# Default to arm64 to match the Lambda architecture
+PACKAGE_ARCH=${PACKAGE_ARCH:-arm64}
 
 : "${BUILD_DIR:?Need BUILD_DIR defined}"
 : "${ZIP_FILE:?Need ZIP_FILE defined}"
