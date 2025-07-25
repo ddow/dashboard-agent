@@ -144,7 +144,7 @@ If the function already exists, check its architecture:
 aws lambda get-function-configuration --function-name YOUR_NAME --query 'Architectures[0]'
 ```
 
-If it reports `x86_64`, remove the function or rerun `03_deploy_lambda.sh` with
-`PACKAGE_ARCH=arm64`. The deploy script automatically deletes and recreates the
-Lambda when it detects an architecture mismatch.
+If the command returns `x86_64`, delete the function or rerun
+`03_deploy_lambda.sh` with `PACKAGE_ARCH=arm64`. The script detects an
+architecture mismatch and recreates the function with the correct architecture.
 
