@@ -35,10 +35,18 @@ for arg in "$@"; do
   esac
 done
 
-# Detect aws CLI and warn if missing
+# Detect aws CLI and verify v2
 if ! command -v aws >/dev/null 2>&1; then
   echo "⚠️  'aws' command not found. AWS-related modules will be skipped."
   AWS_AVAILABLE=false
+else
+  AWS_VER_OUTPUT=$(aws --version 2>&1)
+  if [[ $AWS_VER_OUTPUT =~ aws-cli\/2 ]]; then
+    AWS_AVAILABLE=true
+  else
+    echo "⚠️  AWS CLI v2 required. Found: $AWS_VER_OUTPUT"
+    AWS_AVAILABLE=false
+  fi
 fi
 
 # Shared config

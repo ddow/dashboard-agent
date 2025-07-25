@@ -84,8 +84,24 @@ steps:
       sudo usermod -aG docker $USER
 ```
 
+
 After installing you can confirm Docker works with `docker --version` or by
 running `docker run hello-world`.
+
+### AWS CLI v2
+
+Several deployment scripts rely on features only available in AWS CLI **v2**.
+On Debian/Ubuntu based systems you can install it with:
+
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+unzip -q awscliv2.zip
+sudo ./aws/install --update
+aws --version  # should report aws-cli/2.x
+```
+
+Make sure `aws --version` prints a 2.x release before running the tests or
+`deploy/deploy_backend.sh`.
 
 ### Local development
 
