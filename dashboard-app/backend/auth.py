@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
+import os
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
 # Secret key for JWT encoding/decoding (keep secret!)
-SECRET_KEY = "your-super-secret-key-here"  # Replace with env var in production
+# Reads from env for easier configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

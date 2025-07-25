@@ -6,6 +6,7 @@ LAMBDA_NAME=${LAMBDA_NAME:-dashboard-backend}
 ROLE_NAME=${ROLE_NAME:-DashboardLambdaRole}
 POLICY_ARN=${POLICY_ARN:-arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess}
 API_NAME=${API_NAME:-dashboard-api}
+SECRET_KEY=${SECRET_KEY:-change-me}
 
 set -euo pipefail
 
@@ -49,12 +50,13 @@ elif aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; the
   for attempt in {1..5}; do
     echo "⏳ Updating Lambda configuration (attempt $attempt of 5)..."
     if [ "${DRY_RUN:-false}" = "true" ]; then
-      echo "🧪 DRY RUN: Skipping: aws lambda update-function-configuration --function-name $LAMBDA_NAME --timeout 15 --memory-size 512"
+    echo "🧪 DRY RUN: Skipping: aws lambda update-function-configuration --function-name $LAMBDA_NAME --timeout 15 --memory-size 512 --environment Variables={SECRET_KEY=$SECRET_KEY}"
       true
-    elif aws lambda update-function-configuration \
+  elif aws lambda update-function-configuration \
       --function-name "$LAMBDA_NAME" \
       --timeout 15 \
-      --memory-size 512; then
+      --memory-size 512 \
+      --environment "Variables={SECRET_KEY=$SECRET_KEY}"; then
       echo "✅ Lambda configuration update succeeded."
       break
     else
@@ -70,7 +72,7 @@ elif aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; the
 else
   echo "🆕 Creating new Lambda function..."
   if [ "${DRY_RUN:-false}" = "true" ]; then
-    echo "🧪 DRY RUN: Skipping: aws lambda create-function --function-name $LAMBDA_NAME"
+  echo "🧪 DRY RUN: Skipping: aws lambda create-function --function-name $LAMBDA_NAME --environment Variables={SECRET_KEY=$SECRET_KEY}"
   else
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     aws lambda create-function \
@@ -81,7 +83,8 @@ else
       --handler main.handler \
       --zip-file "fileb://$ZIP_FILE" \
       --timeout 15 \
-      --memory-size 512
+      --memory-size 512 \
+      --environment "Variables={SECRET_KEY=$SECRET_KEY}"
   fi
 
   echo "✅ Lambda created."

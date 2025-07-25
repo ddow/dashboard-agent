@@ -71,3 +71,13 @@ bash scripts/run-local.sh
 It packages the backend, builds the Docker image and launches a container
 on `http://localhost:9000` for manual testing.
 
+### Environment variables
+
+The backend expects a `SECRET_KEY` variable for signing JWTs. The Dockerfile and
+deployment scripts default this to `change-me`, but you should override it in
+production:
+
+```bash
+export SECRET_KEY="your-secret"
+```
+
