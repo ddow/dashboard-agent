@@ -15,3 +15,5 @@ dashboard-app/build/
 *.zip
 *.log
 /dashboard-app/backend/lambda-build
+/dashboard‑app/backend/lambda‑build
+packaged.yml
