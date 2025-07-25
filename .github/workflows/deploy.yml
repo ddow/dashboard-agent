@@ -23,13 +23,9 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install awscli
 
-      - name: Install Docker
+      - name: Ensure Docker is running
         run: |
-          sudo apt-get update
-          sudo apt-get remove --yes containerd || true
-          sudo apt-get install --yes docker.io
-          sudo systemctl start docker
-          sudo usermod -aG docker $USER
+          sudo systemctl start docker || true
 
 
       - name: 🔐 Configure AWS credentials
