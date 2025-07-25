@@ -27,7 +27,7 @@ if [ "$DRY_RUN" = "false" ]; then
   if [ "$PACKAGE_ARCH" = "arm64" ]; then
     DOCKER_FLAGS="--platform linux/arm64/v8"
   else
-    DOCKER_FLAGS=""  # x86_64 uses default platform
+    DOCKER_FLAGS="--platform linux/amd64"  # Added for x86_64 compatibility
   fi
   docker run --rm $DOCKER_FLAGS \
     -v "$PWD/$BUILD_DIR":/var/task \
