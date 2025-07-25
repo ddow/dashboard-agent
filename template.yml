@@ -5,29 +5,29 @@ Globals:
   Function:
     Runtime: python3.12
     Timeout: 10
+    Architectures:
+      - arm64  # For local Mac; change to x86_64 for AWS if desired
     Environment:
       Variables:
-        DRY_RUN: "true"          # or false, as you like
+        DRY_RUN: "true"  # Fake DB for local testing; set to "false" for prod/DynamoDB
 
 Resources:
   DashboardFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: main.handler      # matches your Dockerfile CMD and Mangum handler
-      CodeUri: dashboard-app/backend/
+      Handler: main.handler  # Matches your Mangum handler in main.py
+      CodeUri: dashboard-app/backend/  # Path to your backend code (main.py, etc.)
       Events:
-        Login:
+        Api:
           Type: Api
           Properties:
-            Path: /login
-            Method: post
-        ServeLogin:
-          Type: Api
-          Properties:
-            Path: /login
-            Method: get
-        StaticFiles:
-          Type: Api
-          Properties:
-            Path: /public/{proxy+}
-            Method: get
+            Path: /{proxy+}  # Catches all paths/methods for FastAPI (e.g., /login POST/GET, /dashboard, /public/*)
+            Method: ANY
+      Environment:  # Function-specific overrides
+        Variables:
+          SECRET_KEY: your-secure-long-random-string  # Replace with a real value (generate: python -c "import secrets; print(secrets.token_hex(32))")
+          DASHBOARD_USERS_TABLE: dashboard-users
+          AWS_REGION: us-east-1
+      Policies:  # Add for prod DynamoDB access (optional for local)
+        - DynamoDBCrudPolicy:
+            TableName: dashboard-users

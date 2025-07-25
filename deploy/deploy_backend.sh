@@ -37,7 +37,14 @@ if $LOCAL_ONLY; then
   echo ""
   echo "📦 Building local Docker image for Lambda…"
   # point at the backend folder where your Dockerfile lives
+  export PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}  # Ensure x86_64 for consistency
+  if [ "$PACKAGE_ARCH" = "arm64" ]; then
+    DOCKER_PLATFORM="--platform linux/arm64/v8"
+  else
+    DOCKER_PLATFORM="--platform linux/amd64"
+  fi
   docker build \
+    $DOCKER_PLATFORM \
     -f dashboard-app/backend/Dockerfile \
     -t local-lambda \
     dashboard-app/backend
@@ -45,7 +52,7 @@ if $LOCAL_ONLY; then
   echo ""
   echo "✅ Local-only build complete. You can now run your Lambda container:"
   echo "   bash scripts/run-local.sh"
-  exit 0
+  exit 0  # Explicitly exit to skip AWS steps
 fi
 
 # —————————————————————————————————————————————————————————
@@ -63,7 +70,7 @@ export ROLE_NAME="DashboardLambdaRole"
 export POLICY_ARN="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 export BUILD_DIR="dashboard-app/backend/lambda-build"
 export API_NAME="dashboard-api"
-export PACKAGE_ARCH="arm64"
+export PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}
 
 for step in \
   01_package_lambda.sh \

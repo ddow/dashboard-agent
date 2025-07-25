@@ -3,12 +3,10 @@ set -euo pipefail
 
 # Override in env if you like
 BUILD_DIR=${BUILD_DIR:-dashboard-app/backend/lambda-build}
-# <-- changed default to one level up
-ZIP_FILE=${ZIP_FILE:-dashboard-app/dashboard-backend.zip}
+# Set ZIP_FILE to be inside backend dir
+ZIP_FILE=${ZIP_FILE:-dashboard-app/backend/dashboard-backend.zip}
 DRY_RUN=${DRY_RUN:-false}
-# Target architecture for dependency build (x86_64 or arm64)
-# Default to arm64 to match the Lambda architecture
-PACKAGE_ARCH=${PACKAGE_ARCH:-arm64}
+PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}  # Default to x86_64 for compatibility
 
 : "${BUILD_DIR:?Need BUILD_DIR defined}"
 : "${ZIP_FILE:?Need ZIP_FILE defined}"
@@ -19,9 +17,9 @@ rm -rf "$BUILD_DIR" "$ZIP_FILE" || true
 mkdir -p "$BUILD_DIR"
 
 # Copy code & manifest
-cp dashboard-app/backend/*.py               "$BUILD_DIR/"
+cp dashboard-app/backend/*.py "$BUILD_DIR/"
 cp dashboard-app/backend/requirements-lambda.txt "$BUILD_DIR/"
-cp -r dashboard-app/backend/public          "$BUILD_DIR/"
+cp -r dashboard-app/backend/public "$BUILD_DIR/"
 
 if [ "$DRY_RUN" = "false" ]; then
   echo "🐳 Installing Python dependencies…"
@@ -29,7 +27,7 @@ if [ "$DRY_RUN" = "false" ]; then
   if [ "$PACKAGE_ARCH" = "arm64" ]; then
     DOCKER_FLAGS="--platform linux/arm64/v8"
   else
-    DOCKER_FLAGS=""
+    DOCKER_FLAGS=""  # x86_64 uses default platform
   fi
   docker run --rm $DOCKER_FLAGS \
     -v "$PWD/$BUILD_DIR":/var/task \
@@ -44,10 +42,7 @@ else
 fi
 
 echo "📦 Creating deployment package…"
-# ensure the parent directory exists
-mkdir -p "$(dirname "$ZIP_FILE")"
-
-# zip from inside BUILD_DIR but write to the corrected path
+# Ensure the parent directory exists (handled by mkdir -p above)
 pushd "$BUILD_DIR" >/dev/null
 zip -r "$OLDPWD/$ZIP_FILE" . >/dev/null
 popd >/dev/null
