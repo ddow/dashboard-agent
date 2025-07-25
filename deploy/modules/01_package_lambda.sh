@@ -40,7 +40,7 @@ mkdir -p "$(dirname "$ZIP_FILE")"
 
 # zip from inside BUILD_DIR but write to the corrected path
 pushd "$BUILD_DIR" >/dev/null
-43  zip -r "$OLDPWD/$ZIP_FILE" . >/dev/null
+zip -r "$OLDPWD/$ZIP_FILE" . >/dev/null
 popd >/dev/null
 
 echo "✅ Lambda package ready at $ZIP_FILE"
