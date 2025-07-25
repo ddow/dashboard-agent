@@ -15,9 +15,29 @@ DRY_RUN=${DRY_RUN:-false}
 
 echo "🚀 Step 3: Deploying Lambda: $LAMBDA_NAME"
 
+# Determine if the function already exists
+FUNCTION_EXISTS=false
 if [ "${DRY_RUN:-false}" = "true" ]; then
   echo "🧪 DRY RUN: Skipping: aws lambda get-function --function-name $LAMBDA_NAME"
 elif aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; then
+  FUNCTION_EXISTS=true
+fi
+
+# If it exists, ensure the architecture matches
+if [ "$FUNCTION_EXISTS" = true ]; then
+  EXISTING_ARCH=$(aws lambda get-function-configuration --function-name "$LAMBDA_NAME" --query 'Architectures[0]' --output text)
+  if [ "$EXISTING_ARCH" != "$PACKAGE_ARCH" ]; then
+    echo "⚠️  Lambda architecture is $EXISTING_ARCH but PACKAGE_ARCH is $PACKAGE_ARCH."
+    if [ "${DRY_RUN:-false}" = "true" ]; then
+      echo "🧪 DRY RUN: Skipping: aws lambda delete-function --function-name $LAMBDA_NAME"
+    else
+      aws lambda delete-function --function-name "$LAMBDA_NAME"
+    fi
+    FUNCTION_EXISTS=false
+  fi
+fi
+
+if [ "$FUNCTION_EXISTS" = true ]; then
   echo "🔄 Updating existing Lambda function..."
 
   for attempt in {1..5}; do
@@ -78,7 +98,7 @@ else
     aws lambda create-function \
       --function-name "$LAMBDA_NAME" \
       --runtime python3.12 \
-      --architectures arm64 \
+      --architectures $PACKAGE_ARCH \
       --role arn:aws:iam::${ACCOUNT_ID}:role/$ROLE_NAME \
       --handler main.handler \
       --zip-file "fileb://$ZIP_FILE" \
