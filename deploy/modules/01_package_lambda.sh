@@ -6,6 +6,8 @@ BUILD_DIR=${BUILD_DIR:-dashboard-app/backend/lambda-build}
 # <-- changed default to one level up
 ZIP_FILE=${ZIP_FILE:-dashboard-app/dashboard-backend.zip}
 DRY_RUN=${DRY_RUN:-false}
+# Target architecture for dependency build (x86_64 or arm64)
+PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}
 
 : "${BUILD_DIR:?Need BUILD_DIR defined}"
 : "${ZIP_FILE:?Need ZIP_FILE defined}"
@@ -22,9 +24,14 @@ cp -r dashboard-app/backend/public          "$BUILD_DIR/"
 
 if [ "$DRY_RUN" = "false" ]; then
   echo "🐳 Installing Python dependencies…"
+  if [ "$PACKAGE_ARCH" = "arm64" ]; then
+    SAM_IMAGE="public.ecr.aws/sam/build-python3.12:arm64"
+  else
+    SAM_IMAGE="public.ecr.aws/sam/build-python3.12"
+  fi
   docker run --rm \
     -v "$PWD/$BUILD_DIR":/var/task \
-    public.ecr.aws/sam/build-python3.12 \
+    "$SAM_IMAGE" \
     /bin/bash -c "
       set -eux
       /var/lang/bin/python3.12 -m pip install --upgrade pip
