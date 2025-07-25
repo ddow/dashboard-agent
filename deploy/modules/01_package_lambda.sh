@@ -24,12 +24,13 @@ cp -r dashboard-app/backend/public          "$BUILD_DIR/"
 
 if [ "$DRY_RUN" = "false" ]; then
   echo "🐳 Installing Python dependencies…"
+  SAM_IMAGE="public.ecr.aws/sam/build-python3.12"
   if [ "$PACKAGE_ARCH" = "arm64" ]; then
-    SAM_IMAGE="public.ecr.aws/sam/build-python3.12:arm64"
+    DOCKER_FLAGS="--platform linux/arm64/v8"
   else
-    SAM_IMAGE="public.ecr.aws/sam/build-python3.12"
+    DOCKER_FLAGS=""
   fi
-  docker run --rm \
+  docker run --rm $DOCKER_FLAGS \
     -v "$PWD/$BUILD_DIR":/var/task \
     "$SAM_IMAGE" \
     /bin/bash -c "

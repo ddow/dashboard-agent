@@ -7,7 +7,7 @@ export DRY_RUN=true
 echo "🔍 Testing local Docker build environment against AWS Lambda baseline..."
 echo "---------------------------------------------------------------"
 
-EXPECTED_IMAGE="public.ecr.aws/sam/build-python3.12:arm64"
+EXPECTED_IMAGE="public.ecr.aws/sam/build-python3.12"
 EXPECTED_ARCH="aarch64"
 EXPECTED_SO_LIB="_pydantic_core"
 BUILD_DIR="dashboard-app/backend/lambda-build"
