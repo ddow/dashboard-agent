@@ -13,11 +13,12 @@ docker build \
 docker rm -f lambda-local 2>/dev/null || true
 
 # 4) Run new in DRY_RUN
-docker run --rm -d \
-  -e DRY_RUN=true \
-  -p 9000:8080 \
-  --name lambda-local \
-  local-lambda \
+  docker run --rm -d \
+    -e DRY_RUN=true \
+    -e SECRET_KEY=change-me \
+    -p 9000:8080 \
+    --name lambda-local \
+    local-lambda \
   main.handler
 
 echo "✅ local-lambda is up on http://localhost:9000 (DRY_RUN)"
