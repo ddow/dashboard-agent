@@ -51,8 +51,9 @@ When run without `--local-only` the packaging step uses Docker to build Python
 dependencies inside the `public.ecr.aws/sam/build-python3.12` image. The
 `--platform linux/arm64/v8` flag ensures packages like `pydantic-core` compile
 correctly for the ARM Lambda runtime. This works out of the box on GitHub
-runners because Docker is preinstalled. The packaging script now defaults to
-`arm64`; override `PACKAGE_ARCH` if you need a different architecture.
+runners because Docker is preinstalled. The packaging and deployment scripts
+now default to `arm64`; override `PACKAGE_ARCH` if you need a different
+architecture.
 
 ### Tests under `deploy/tests`
 
@@ -118,15 +119,16 @@ it falls back to the default hosted API Gateway URL.
 
 If CloudWatch logs show an error like `No module named 'pydantic_core._pydantic_core'`
 the Lambda package was likely built for the wrong CPU architecture. The provided
-deployment scripts create an **arm64** Lambda, so all dependencies must also be
-compiled for `arm64`.
+deployment scripts create an **arm64** Lambda and update existing functions to
+that architecture, so all dependencies must be compiled for `arm64`.
 
 When packaging manually run the build inside the SAM Docker image:
 
 ```bash
 bash deploy/modules/01_package_lambda.sh
 ```
-You can override the architecture by setting `PACKAGE_ARCH` if necessary.
+You can override the architecture by setting `PACKAGE_ARCH`; both packaging and
+deployment scripts honor this variable.
 
 Alternatively you can install dependencies directly specifying the platform:
 
