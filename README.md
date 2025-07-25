@@ -112,3 +112,29 @@ The React frontend looks for a `REACT_APP_API_URL` variable when building.
 If set, it defines the API base URL used by `src/api.js`. When not provided,
 it falls back to the default hosted API Gateway URL.
 
+### Troubleshooting
+
+#### ImportModuleError for `pydantic_core`
+
+If CloudWatch logs show an error like `No module named 'pydantic_core._pydantic_core'`
+the Lambda package was likely built for the wrong CPU architecture. The provided
+deployment scripts create an **arm64** Lambda, so all dependencies must also be
+compiled for `arm64`.
+
+When packaging manually run the build inside the SAM Docker image with
+`PACKAGE_ARCH=arm64`:
+
+```bash
+export PACKAGE_ARCH=arm64
+bash deploy/modules/01_package_lambda.sh
+```
+
+Alternatively you can install dependencies directly specifying the platform:
+
+```bash
+pip install -r requirements-lambda.txt \
+  --platform manylinux2014_aarch64 --target ./python --only-binary=:all:
+```
+
+Re-deploy the updated ZIP to resolve the runtime import error.
+
