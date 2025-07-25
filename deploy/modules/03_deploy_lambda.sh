@@ -15,6 +15,15 @@ set -euo pipefail
 # Allow skipping AWS calls when DRY_RUN=true
 DRY_RUN=${DRY_RUN:-false}
 
+# --architectures requires AWS CLI v2
+if [ "$DRY_RUN" != "true" ]; then
+  AWS_CLI_MAJOR=$(aws --version 2>&1 | cut -d/ -f2 | cut -d. -f1)
+  if [ "${AWS_CLI_MAJOR:-0}" -lt 2 ]; then
+    echo "❌ AWS CLI v2 is required for --architectures. Detected: $(aws --version 2>&1)"
+    exit 1
+  fi
+fi
+
 echo "🚀 Step 3: Deploying Lambda: $LAMBDA_NAME"
 
 if [ "${DRY_RUN:-false}" = "true" ]; then

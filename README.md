@@ -55,6 +55,10 @@ runners because Docker is preinstalled. The packaging and deployment scripts
 now default to `arm64`; override `PACKAGE_ARCH` if you need a different
 architecture.
 
+These deployment modules require **AWS CLI v2** so the architecture can be
+set when creating or updating the Lambda. If you encounter an error like
+`Unknown options: --architectures`, upgrade your environment to AWS CLI v2.
+
 ### Tests under `deploy/tests`
 
 The `deploy/tests` directory contains simple sanity checks.  The most commonly
@@ -121,6 +125,8 @@ If CloudWatch logs show an error like `No module named 'pydantic_core._pydantic_
 the Lambda package was likely built for the wrong CPU architecture. The provided
 deployment scripts create an **arm64** Lambda and update existing functions to
 that architecture, so all dependencies must be compiled for `arm64`.
+Make sure your environment uses **AWS CLI v2**, otherwise the deploy script
+cannot set the architecture and you'll see `Unknown options: --architectures`.
 
 When packaging manually run the build inside the SAM Docker image:
 
