@@ -81,3 +81,7 @@ production:
 export SECRET_KEY="your-secret"
 ```
 
+The React frontend looks for a `REACT_APP_API_URL` variable when building.
+If set, it defines the API base URL used by `src/api.js`. When not provided,
+it falls back to the default hosted API Gateway URL.
+
