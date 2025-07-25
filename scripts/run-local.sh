@@ -1,29 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) Repackage
-bash deploy/modules/01_package_lambda.sh
-
-# 2) Rebuild the image
-docker build \
-  -f dashboard-app/backend/Dockerfile \
-  -t local-lambda .
-
-# 3) Tear down old
+# Tear down old container if running
 docker rm -f lambda-local 2>/dev/null || true
 
-# 4) Run new in DRY_RUN
-  docker run --rm -d \
-    -e DRY_RUN=true \
-    -e SECRET_KEY=change-me \
-    -p 9000:8080 \
-    --name lambda-local \
-    local-lambda \
-  main.handler
+# Run new container in detached mode
+docker run --rm -d \
+  -e DRY_RUN=true \
+  -e SECRET_KEY=abc123def456ghi789jkl012mno345 \
+  -e DASHBOARD_USERS_TABLE=dashboard-users \
+  -e AWS_REGION=us-east-1 \
+  -p 9000:8080 \
+  --name lambda-local \
+  local-lambda
 
 echo "✅ local-lambda is up on http://localhost:9000 (DRY_RUN)"
 
-# 5) Smoke-test /login with full event payload
+# Smoke-test /login with full event payload
 echo "🔍 Testing POST /login with dry-run credentials…"
 curl -s -XPOST http://localhost:9000/2015-03-31/functions/function/invocations \
   -H "Content-Type: application/json" \
