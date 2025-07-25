@@ -44,3 +44,4 @@ pushd "$BUILD_DIR" >/dev/null
 popd >/dev/null
 
 echo "✅ Lambda package ready at $ZIP_FILE"
+echo
