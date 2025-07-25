@@ -147,3 +147,7 @@ aws lambda get-function-configuration --function-name YOUR_NAME --query 'Archite
 If it reports `x86_64` you can remove the function or let `03_deploy_lambda.sh`
 recreate it automatically when `PACKAGE_ARCH=arm64`.
 
+The deploy script checks the existing architecture and deletes the function if
+it differs from `PACKAGE_ARCH`, so subsequent runs create the Lambda with the
+correct architecture.
+
