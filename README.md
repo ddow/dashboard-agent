@@ -76,6 +76,7 @@ steps:
   - name: Install Docker
     run: |
       sudo apt-get update
+      sudo apt-get remove --yes containerd || true
       sudo apt-get install --yes docker.io
       sudo systemctl start docker
       sudo usermod -aG docker $USER
