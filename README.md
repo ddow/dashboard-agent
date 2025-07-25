@@ -47,11 +47,12 @@ image so it can be run locally.
 ./deploy/deploy_backend.sh --local-only
 ```
 
-When run without `--local-only` the packaging step builds Python
-dependencies inside the `public.ecr.aws/sam/build-python3.12` image using
-`--platform linux/arm64/v8` so that compiled wheels (e.g. `pydantic-core`)
-match the ARM Lambda runtime. If you package the Lambda manually make sure to
-export `PACKAGE_ARCH=arm64` before invoking `01_package_lambda.sh`.
+When run without `--local-only` the packaging step uses Docker to build Python
+dependencies inside the `public.ecr.aws/sam/build-python3.12` image. The
+`--platform linux/arm64/v8` flag ensures packages like `pydantic-core` compile
+correctly for the ARM Lambda runtime. This works out of the box on GitHub
+runners because Docker is preinstalled. If you package the Lambda manually make
+sure to export `PACKAGE_ARCH=arm64` before invoking `01_package_lambda.sh`.
 
 ### Tests under `deploy/tests`
 
