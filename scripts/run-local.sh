@@ -7,7 +7,7 @@ docker rm -f lambda-local 2>/dev/null || true
 # Run new container in detached mode
 docker run --rm -d \
   -e DRY_RUN=true \
-  -e SECRET_KEY=abc123def456ghi789jkl012mno345 \
+  -e SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))") \
   -e DASHBOARD_USERS_TABLE=dashboard-users \
   -e AWS_REGION=us-east-1 \
   -p 9000:8080 \
@@ -15,10 +15,12 @@ docker run --rm -d \
   local-lambda
 
 echo "✅ local-lambda is up on http://localhost:9000 (DRY_RUN)"
+echo "Waiting for container to stabilize..."
+sleep 2  # Give the container time to start
 
 # Smoke-test /login with full event payload
 echo "🔍 Testing POST /login with dry-run credentials…"
-curl -s -XPOST http://localhost:9000/2015-03-31/functions/function/invocations \
+curl -v -XPOST http://localhost:9000/2015-03-31/functions/function/invocations \
   -H "Content-Type: application/json" \
   -d '{
     "version":"2.0",
@@ -32,4 +34,4 @@ curl -s -XPOST http://localhost:9000/2015-03-31/functions/function/invocations \
   }' | jq .
 
 echo ""
-echo "If you see a JSON with an access_token, you’re good to go!"
+echo "If you see a 200 response with an access_token, you’re good to go!"
