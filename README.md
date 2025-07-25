@@ -138,8 +138,7 @@ pip install -r requirements-lambda.txt \
 
 Re-deploy the updated ZIP to resolve the runtime import error.
 
-If the function already exists you can check its architecture with:
-
+If the function already exists, check its architecture:
 ```bash
 aws lambda get-function-configuration --function-name YOUR_NAME --query 'Architectures[0]'
 ```
