@@ -7,14 +7,14 @@ export DRY_RUN=true
 echo "🔍 Testing local Docker build environment against AWS Lambda baseline..."
 echo "---------------------------------------------------------------"
 
-EXPECTED_IMAGE="public.ecr.aws/sam/build-python3.12"
+EXPECTED_IMAGE="public.ecr.aws/sam/build-python3.12:arm64"
 EXPECTED_ARCH="aarch64"
 EXPECTED_SO_LIB="_pydantic_core"
 BUILD_DIR="dashboard-app/backend/lambda-build"
 
 # Step 1: Confirm Docker image is aarch64
 echo "🐳 Verifying Docker base image architecture..."
-IMAGE_ARCH=$(docker run --rm "$EXPECTED_IMAGE" uname -m)
+IMAGE_ARCH=$(docker run --rm --platform linux/arm64/v8 "$EXPECTED_IMAGE" uname -m)
 if [[ "$IMAGE_ARCH" == "$EXPECTED_ARCH" ]]; then
   echo "✅ Docker architecture matches Lambda ($EXPECTED_ARCH)"
 else
@@ -30,7 +30,7 @@ cp dashboard-app/backend/*.py "$BUILD_DIR/"
 cp dashboard-app/backend/requirements-lambda.txt "$BUILD_DIR/"
 cp -r dashboard-app/backend/public "$BUILD_DIR/"
 
-docker run --rm -v "$PWD/$BUILD_DIR":/var/task "$EXPECTED_IMAGE" /bin/bash -c "
+docker run --rm --platform linux/arm64/v8 -v "$PWD/$BUILD_DIR":/var/task "$EXPECTED_IMAGE" /bin/bash -c "
   set -eux
   cd /var/task
   rm -rf $EXPECTED_SO_LIB* __pycache__
@@ -63,7 +63,7 @@ fi
 
 # Step 5: Confirm Python version matches Lambda
 echo "🐍 Verifying Python version inside Docker..."
-PYTHON_VERSION=$(docker run --rm "$EXPECTED_IMAGE" /var/lang/bin/python3.12 --version)
+PYTHON_VERSION=$(docker run --rm --platform linux/arm64/v8 "$EXPECTED_IMAGE" /var/lang/bin/python3.12 --version)
 echo "🧪 Detected version: $PYTHON_VERSION"
 
 if [[ "$PYTHON_VERSION" =~ Python\ 3\.12\.[0-9]+ ]]; then

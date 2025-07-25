@@ -47,6 +47,12 @@ image so it can be run locally.
 ./deploy/deploy_backend.sh --local-only
 ```
 
+When run without `--local-only` the packaging step builds Python
+dependencies inside the `public.ecr.aws/sam/build-python3.12:arm64` image so
+that compiled wheels (e.g. `pydantic-core`) match the ARM Lambda runtime. If
+you package the Lambda manually make sure to export `PACKAGE_ARCH=arm64` before
+invoking `01_package_lambda.sh`.
+
 ### Tests under `deploy/tests`
 
 The `deploy/tests` directory contains simple sanity checks.  The most commonly

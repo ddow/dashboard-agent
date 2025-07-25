@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Ensure tests never hit AWS
 export DRY_RUN=true
+export PACKAGE_ARCH=arm64
 
 echo "🧪 Running all deployment modules as tests..."
 echo "---------------------------------------------"

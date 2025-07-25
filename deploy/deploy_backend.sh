@@ -63,6 +63,7 @@ export ROLE_NAME="DashboardLambdaRole"
 export POLICY_ARN="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 export BUILD_DIR="dashboard-app/backend/lambda-build"
 export API_NAME="dashboard-api"
+export PACKAGE_ARCH="arm64"
 
 for step in \
   01_package_lambda.sh \
