@@ -28,11 +28,11 @@ if [ "$DRY_RUN" = "false" ]; then
   else
     DOCKER_FLAGS="--platform linux/amd64"
   fi
-  # Use amazonlinux:2 for yum compatibility
+  # Use amazonlinux:2023 for Python and yum compatibility
   docker run --rm $DOCKER_FLAGS \
     --entrypoint /bin/bash \
     -v "$PWD/$BUILD_DIR":/var/task \
-    "amazonlinux:2" \
+    "amazonlinux:2023" \
     -c "
       set -eux
       yum install -y zip
