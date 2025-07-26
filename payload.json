@@ -1,0 +1,10 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /login",
+  "rawPath": "/login",
+  "rawQueryString": "",
+  "headers": {"content-type": "application/x-www-form-urlencoded"},
+  "requestContext": {"http": {"method": "POST", "path": "/login", "sourceIp": "127.0.0.1"}},
+  "body": "username=strngr12@gmail.com&password=Passw0rd!",
+  "isBase64Encoded": false
+}

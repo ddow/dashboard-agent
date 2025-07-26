@@ -8,12 +8,15 @@ POLICY_ARN=${POLICY_ARN:-arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess}
 API_NAME=${API_NAME:-dashboard-api}
 SECRET_KEY=${SECRET_KEY:-change-me}
 # Target architecture for the Lambda (x86_64 or arm64)
-PACKAGE_ARCH=${PACKAGE_ARCH:-arm64}
+PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}  # Default to x86_64 for compatibility
 
 set -euo pipefail
 
 # Allow skipping AWS calls when DRY_RUN=true
 DRY_RUN=${DRY_RUN:-false}
+
+# Disable AWS CLI pager to avoid interactive output
+export AWS_PAGER=""
 
 echo "🚀 Step 3: Deploying Lambda: $LAMBDA_NAME"
 
@@ -52,14 +55,13 @@ elif aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; the
   for attempt in {1..5}; do
     echo "⏳ Updating Lambda configuration (attempt $attempt of 5)..."
     if [ "${DRY_RUN:-false}" = "true" ]; then
-    echo "🧪 DRY RUN: Skipping: aws lambda update-function-configuration --function-name $LAMBDA_NAME --timeout 15 --memory-size 512 --architectures $PACKAGE_ARCH --environment Variables={SECRET_KEY=$SECRET_KEY}"
+      echo "🧪 DRY RUN: Skipping: aws lambda update-function-configuration --function-name $LAMBDA_NAME --timeout 15 --memory-size 512 --environment Variables={SECRET_KEY=$SECRET_KEY}"
       true
-  elif aws lambda update-function-configuration \
-      --function-name "$LAMBDA_NAME" \
-      --timeout 15 \
-      --architectures "$PACKAGE_ARCH" \
-      --memory-size 512 \
-      --environment "Variables={SECRET_KEY=$SECRET_KEY}"; then
+    elif aws lambda update-function-configuration \
+        --function-name "$LAMBDA_NAME" \
+        --timeout 15 \
+        --memory-size 512 \
+        --environment "Variables={SECRET_KEY=$SECRET_KEY}"; then
       echo "✅ Lambda configuration update succeeded."
       break
     else
@@ -75,7 +77,7 @@ elif aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1; the
 else
   echo "🆕 Creating new Lambda function..."
   if [ "${DRY_RUN:-false}" = "true" ]; then
-  echo "🧪 DRY RUN: Skipping: aws lambda create-function --function-name $LAMBDA_NAME --architectures $PACKAGE_ARCH --environment Variables={SECRET_KEY=$SECRET_KEY}"
+    echo "🧪 DRY RUN: Skipping: aws lambda create-function --function-name $LAMBDA_NAME --environment Variables={SECRET_KEY=$SECRET_KEY}"
   else
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
     aws lambda create-function \
