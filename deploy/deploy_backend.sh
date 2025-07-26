@@ -13,6 +13,9 @@ set -euo pipefail
 # ---------------------------------------------------------
 
 LOCAL_ONLY=false
+# Default architecture for Lambda (override with PACKAGE_ARCH env var if needed)
+PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}  # Set to x86_64 for AWS compatibility
+
 # parse flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -37,7 +40,6 @@ if $LOCAL_ONLY; then
   echo ""
   echo "📦 Building local Docker image for Lambda…"
   # point at the backend folder where your Dockerfile lives
-  export PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}  # Ensure x86_64 for consistency
   if [ "$PACKAGE_ARCH" = "arm64" ]; then
     DOCKER_PLATFORM="--platform linux/arm64/v8"
   else
@@ -70,7 +72,7 @@ export ROLE_NAME="DashboardLambdaRole"
 export POLICY_ARN="arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 export BUILD_DIR="dashboard-app/backend/lambda-build"
 export API_NAME="dashboard-api"
-export PACKAGE_ARCH=${PACKAGE_ARCH:-x86_64}
+export PACKAGE_ARCH  # Export the default or overridden value
 
 for step in \
   01_package_lambda.sh \
