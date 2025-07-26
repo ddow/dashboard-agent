@@ -16,3 +16,6 @@ dashboard-app/build/
 *.log
 /dashboard-app/backend/lambda-build
 packaged.yml
+output.json
+output.json
+*.json
