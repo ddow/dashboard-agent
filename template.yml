@@ -1,33 +1,45 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+Description: Dashboard API Stack - v1.1  # Change from v1.0 or add if missing
 
 Globals:
   Function:
     Runtime: python3.12
     Timeout: 10
     Architectures:
-      - arm64  # For local Mac; change to x86_64 for AWS if desired
+      - x86_64
     Environment:
       Variables:
-        DRY_RUN: "true"  # Fake DB for local testing; set to "false" for prod/DynamoDB
+        DRY_RUN: "false"
+        SECRET_KEY: 1d1870ab5ddc42175514dd43abf4dfc6bfe25f582f6fc0044b8f4b637e40ef4d
+        DASHBOARD_USERS_TABLE: dashboard-users
 
 Resources:
   DashboardFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: main.handler  # Matches your Mangum handler in main.py
-      CodeUri: dashboard-app/backend/  # Path to your backend code (main.py, etc.)
+      Handler: main.handler
+      CodeUri: s3://dashboard.danieldow.com/dashboard-backend.zip
       Events:
         Api:
           Type: Api
           Properties:
-            Path: /{proxy+}  # Catches all paths/methods for FastAPI (e.g., /login POST/GET, /dashboard, /public/*)
+            Path: /{proxy+}
             Method: ANY
-      Environment:  # Function-specific overrides
-        Variables:
-          SECRET_KEY: your-secure-long-random-string  # Replace with a real value (generate: python -c "import secrets; print(secrets.token_hex(32))")
-          DASHBOARD_USERS_TABLE: dashboard-users
-          AWS_REGION: us-east-1
-      Policies:  # Add for prod DynamoDB access (optional for local)
-        - DynamoDBCrudPolicy:
-            TableName: dashboard-users
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource: arn:aws:dynamodb:us-east-1:573978064410:table/dashboard-users
+
+Outputs:
+  ApiEndpoint:
+    Description: Default execute-api endpoint
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod'

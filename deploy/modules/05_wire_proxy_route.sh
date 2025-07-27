@@ -14,16 +14,63 @@ DRY_RUN=${DRY_RUN:-false}
 
 echo "🔗 Step 5: Wiring {proxy+} route..."
 
-# Ensure REST_API_ID is set (auto‑detect from CF if missing)
+# Check REST_API_ID from 04_setup_api_gateway.sh first
 if [ -z "${REST_API_ID:-}" ]; then
-  echo "🔧 REST_API_ID not set, fetching from CloudFormation…"
-  REST_API_ID=$(aws cloudformation describe-stacks \
-    --stack-name dashboard-prod \
-    --region us-east-1 \
-    --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
-    --output text | awk -F'[./]' '{print $3}')
-  echo "🔧 REST_API_ID auto‑detected: $REST_API_ID"
-  export REST_API_ID
+  echo "🔧 REST_API_ID not set from previous step, attempting CloudFormation setup..."
+  if [ "$DRY_RUN" = "false" ]; then
+    # Check stack status before fetching
+    STACK_STATUS=$(aws cloudformation describe-stacks \
+      --stack-name dashboard-prod \
+      --region us-east-1 \
+      --query "Stacks[0].StackStatus" \
+      --output text 2>/dev/null) || STACK_STATUS="NOT_FOUND"
+    if [ "$STACK_STATUS" = "NOT_FOUND" ] || [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+      if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+        echo "⚠️ Stack 'dashboard-prod' in ROLLBACK_COMPLETE. Deleting existing stack..."
+        aws cloudformation delete-stack \
+          --stack-name dashboard-prod \
+          --region us-east-1
+        aws cloudformation wait stack-delete-complete --stack-name dashboard-prod --region us-east-1
+      fi
+      echo "⚠️ CloudFormation stack 'dashboard-prod' not found or cleaned. Creating stack..."
+      aws cloudformation create-stack \
+        --stack-name dashboard-prod \
+        --template-body file://template.yml \
+        --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM \
+        --region us-east-1 || {
+        echo "❌ Failed to create stack 'dashboard-prod'. Check template.yml and permissions."
+        exit 1
+      }
+      echo "⏳ Waiting 60 seconds for stack creation to stabilize..."
+      sleep 60
+      aws cloudformation wait stack-create-complete --stack-name dashboard-prod --region us-east-1 || {
+        echo "❌ Stack creation failed or rolled back. Check AWS Console for details."
+        exit 1
+      }
+    fi
+    STACK_OUTPUT=$(aws cloudformation describe-stacks \
+      --stack-name dashboard-prod \
+      --region us-east-1 \
+      --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+      --output text)
+    echo "DEBUG: STACK_OUTPUT = $STACK_OUTPUT"  # Add debug output
+    # Robustly extract REST_API_ID from ApiEndpoint
+    if [ -n "$STACK_OUTPUT" ]; then
+      REST_API_ID=$(echo "$STACK_OUTPUT" | sed -E 's|https://([a-z0-9]+)\.execute-api\.us-east-1\.amazonaws\.com/.*|\1|')
+      if [ -z "$REST_API_ID" ]; then
+        echo "❌ Failed to parse REST_API_ID from $STACK_OUTPUT"
+        exit 1
+      fi
+    else
+      echo "❌ No ApiEndpoint output from stack. Check stack outputs manually."
+      exit 1
+    fi
+    export REST_API_ID
+  else
+    echo "🧪 DRY RUN: Faking REST_API_ID"
+    REST_API_ID="dryrun-api-id"
+    export REST_API_ID
+  fi
 fi
 
 # Get or set PARENT_ID (root resource)
@@ -35,7 +82,8 @@ if [ -z "${PARENT_ID:-}" ]; then
     PARENT_ID=$(aws apigateway get-resources \
       --rest-api-id "$REST_API_ID" \
       --query 'items[0].id' \
-      --output text)
+      --output text \
+      --region us-east-1)
   fi
   export PARENT_ID
 fi
@@ -62,7 +110,8 @@ if [ -z "$RESOURCE_ID" ]; then
     RESOURCE_ID=$(aws apigateway get-resources \
       --rest-api-id "$REST_API_ID" \
       --query "items[?pathPart=='{proxy+}'].id | [0]" \
-      --output text)
+      --output text \
+      --region us-east-1)
   fi
 fi
 
@@ -86,7 +135,7 @@ fi
 if [ "$DRY_RUN" = "true" ]; then
   echo "🧪 DRY RUN: Skipping: aws apigateway put-integration"
 else
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --region us-east-1)
   aws apigateway put-integration \
     --rest-api-id "$REST_API_ID" \
     --resource-id "$RESOURCE_ID" \
@@ -100,7 +149,7 @@ fi
 if [ "$DRY_RUN" = "true" ]; then
   echo "🧪 DRY RUN: Skipping: aws lambda add-permission"
 else
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --region us-east-1)
   aws lambda add-permission \
     --function-name "$LAMBDA_NAME" \
     --statement-id "proxy-$(date +%s)" \
