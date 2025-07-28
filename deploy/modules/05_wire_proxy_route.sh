@@ -14,55 +14,13 @@ DRY_RUN=${DRY_RUN:-false}
 
 echo "🔗 Step 5: Wiring {proxy+} route..."
 
-# Check REST_API_ID from 04_setup_api_gateway.sh first
+# Use REST_API_ID from 04_setup_api_gateway.sh first
 if [ -z "${REST_API_ID:-}" ]; then
-  echo "🔧 REST_API_ID not set from previous step, attempting CloudFormation setup..."
+  echo "🔧 REST_API_ID not set from previous step, fetching latest API..."
   if [ "$DRY_RUN" = "false" ]; then
-    # Check stack status before fetching
-    STACK_STATUS=$(aws cloudformation describe-stacks \
-      --stack-name dashboard-prod \
-      --region us-east-1 \
-      --query "Stacks[0].StackStatus" \
-      --output text 2>/dev/null) || STACK_STATUS="NOT_FOUND"
-    if [ "$STACK_STATUS" = "NOT_FOUND" ] || [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
-      if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
-        echo "⚠️ Stack 'dashboard-prod' in ROLLBACK_COMPLETE. Deleting existing stack..."
-        aws cloudformation delete-stack \
-          --stack-name dashboard-prod \
-          --region us-east-1
-        aws cloudformation wait stack-delete-complete --stack-name dashboard-prod --region us-east-1
-      fi
-      echo "⚠️ CloudFormation stack 'dashboard-prod' not found or cleaned. Creating stack..."
-      aws cloudformation create-stack \
-        --stack-name dashboard-prod \
-        --template-body file://template.yml \
-        --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM \
-        --region us-east-1 || {
-        echo "❌ Failed to create stack 'dashboard-prod'. Check template.yml and permissions."
-        exit 1
-      }
-      echo "⏳ Waiting 60 seconds for stack creation to stabilize..."
-      sleep 60
-      aws cloudformation wait stack-create-complete --stack-name dashboard-prod --region us-east-1 || {
-        echo "❌ Stack creation failed or rolled back. Check AWS Console for details."
-        exit 1
-      }
-    fi
-    STACK_OUTPUT=$(aws cloudformation describe-stacks \
-      --stack-name dashboard-prod \
-      --region us-east-1 \
-      --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
-      --output text)
-    echo "DEBUG: STACK_OUTPUT = $STACK_OUTPUT"  # Add debug output
-    # Robustly extract REST_API_ID from ApiEndpoint
-    if [ -n "$STACK_OUTPUT" ]; then
-      REST_API_ID=$(echo "$STACK_OUTPUT" | sed -E 's|https://([a-z0-9]+)\.execute-api\.us-east-1\.amazonaws\.com/.*|\1|')
-      if [ -z "$REST_API_ID" ]; then
-        echo "❌ Failed to parse REST_API_ID from $STACK_OUTPUT"
-        exit 1
-      fi
-    else
-      echo "❌ No ApiEndpoint output from stack. Check stack outputs manually."
+    REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME']|[0].id" --output text --region us-east-1)
+    if [ -z "$REST_API_ID" ] || [ "$REST_API_ID" = "None" ]; then
+      echo "❌ No recent API Gateway found. Check 04_setup_api_gateway.sh output."
       exit 1
     fi
     export REST_API_ID
@@ -71,6 +29,14 @@ if [ -z "${REST_API_ID:-}" ]; then
     REST_API_ID="dryrun-api-id"
     export REST_API_ID
   fi
+else
+  echo "🔧 Using REST_API_ID from previous step: $REST_API_ID"
+fi
+
+# Ignore STACK_OUTPUT if it exists, as it may be outdated
+if [ -n "${STACK_OUTPUT:-}" ] && [[ "$STACK_OUTPUT" =~ "wy067b303d" ]]; then
+  echo "⚠️ Ignoring outdated STACK_OUTPUT referencing wy067b303d"
+  unset STACK_OUTPUT
 fi
 
 # Get or set PARENT_ID (root resource)

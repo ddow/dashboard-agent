@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Dashboard API Stack - v1.1  # Change from v1.0 or add if missing
+Description: Dashboard API Stack - v0.09 (SECRET_KEY updated)
 
 Globals:
   Function:
