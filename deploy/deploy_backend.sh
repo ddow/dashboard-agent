@@ -132,8 +132,9 @@ NEW_VERSION_NUM=$((VERSION_NUM + 1))
 NEW_VERSION=$(printf "%.2f" "$(echo "$NEW_VERSION_NUM/100" | bc -l)")
 
 # Generate a new SECRET_KEY securely and update template.yml
+# Use the virtual environment's Python
+SECRET_KEY=$(~/dev/dashboard-venv/bin/python -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null)
 {
-  SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null)
   sed -i.bak "s/^${VERSION_KEY}: .*/${VERSION_KEY}: Dashboard API Stack - v${NEW_VERSION} (SECRET_KEY updated)/" "$TEMPLATE_FILE" && rm -f "${TEMPLATE_FILE}.bak"
   sed -i.bak "s/SECRET_KEY: .*/SECRET_KEY: $SECRET_KEY/" "$TEMPLATE_FILE" && rm -f "${TEMPLATE_FILE}.bak"
 } > /dev/null 2>&1  # Suppress output
@@ -158,13 +159,14 @@ done
 # Update CloudFormation stack with the new version and force Lambda update
 if [ "$DRY_RUN" = "false" ]; then
   echo "🔄 Updating CloudFormation stack with new version..."
-  # Use --no-fail-on-empty-changeset to allow updates with no changes
+  # Use UpdateTrigger and force Lambda update with --use-previous-template
   aws cloudformation update-stack \
     --stack-name dashboard-prod \
     --template-body file://template.yml \
     --region us-east-1 \
     --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-    --no-fail-on-empty-changeset || {
+    --parameters ParameterKey=UpdateTrigger,ParameterValue=$(date +%s) \
+    --use-previous-template || {
       echo "⚠️ Stack update failed, checking if stack exists..."
       if aws cloudformation describe-stacks --stack-name dashboard-prod --region us-east-1 >/dev/null 2>&1; then
         echo "ℹ️ Stack exists, attempting update again with full capabilities..."
@@ -173,7 +175,8 @@ if [ "$DRY_RUN" = "false" ]; then
           --template-body file://template.yml \
           --region us-east-1 \
           --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-          --no-fail-on-empty-changeset
+          --parameters ParameterKey=UpdateTrigger,ParameterValue=$(date +%s) \
+          --use-previous-template
       else
         echo "⚠️ Stack does not exist, creating new stack..."
         aws cloudformation create-stack \
@@ -183,6 +186,12 @@ if [ "$DRY_RUN" = "false" ]; then
           --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
       fi
     }
+  # Wait for stack update to complete
+  aws cloudformation wait stack-update-complete --stack-name dashboard-prod --region us-east-1 || {
+    echo "⚠️ Stack update failed to complete. Check status..."
+    aws cloudformation describe-stack-events --stack-name dashboard-prod --region us-east-1
+    exit 1
+  }
   echo "✅ CloudFormation stack updated or created."
 else
   echo "⚠️ Skipping stack update (DRY_RUN set)."

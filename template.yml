@@ -1,6 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Dashboard API Stack - v0.18 (SECRET_KEY updated)
+Description: Dashboard API Stack - v0.19 (SECRET_KEY updated)
+Parameters:
+  UpdateTrigger:
+    Type: String
+    Default: "0"
 
 Globals:
   Function:
@@ -11,7 +15,7 @@ Globals:
     Environment:
       Variables:
         DRY_RUN: "false"
-        SECRET_KEY: 4969c4171ae050d40610358599a7d5ec05dbd8638f8f41845288a6553c3c2677
+        SECRET_KEY: 6ae0931ee0b959b4f80d74b313fc8c13b7bd226d38cd3df5b8847f013e0d143b
         DASHBOARD_USERS_TABLE: dashboard-users
 
 Resources:
@@ -38,6 +42,8 @@ Resources:
                 - dynamodb:Scan
                 - dynamodb:Query
               Resource: arn:aws:dynamodb:us-east-1:573978064410:table/dashboard-users
+      Metadata:
+        UpdateTrigger: !Ref UpdateTrigger  # Forces update on parameter change
 
 Outputs:
   ApiEndpoint:
