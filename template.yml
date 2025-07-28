@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Dashboard API Stack - v0.09 (SECRET_KEY updated)
+Description: Dashboard API Stack - v0.18 (SECRET_KEY updated)
 
 Globals:
   Function:
@@ -11,7 +11,7 @@ Globals:
     Environment:
       Variables:
         DRY_RUN: "false"
-        SECRET_KEY: 1d1870ab5ddc42175514dd43abf4dfc6bfe25f582f6fc0044b8f4b637e40ef4d
+        SECRET_KEY: 4969c4171ae050d40610358599a7d5ec05dbd8638f8f41845288a6553c3c2677
         DASHBOARD_USERS_TABLE: dashboard-users
 
 Resources:

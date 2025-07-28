@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Ensure this script runs in Bash
+if [ -z "$BASH_VERSION" ]; then
+  echo "Error: This script must be run with Bash. Use: bash $0"
+  exit 1
+fi
+
 set -euo pipefail
 
 # ---------------------------------------------------------
@@ -48,16 +54,51 @@ if $LOCAL_ONLY; then
     dashboard-app/backend
 
   echo ""
-  echo "✅ Local-only build complete. You can now run your Lambda container:"
-  echo "   bash scripts/run-local.sh"
+  echo "🚀 Starting local Lambda container…"
+  # Remove old container and run new one, keeping it alive
+  docker rm -f lambda-local 2>/dev/null || true
+  docker run -d -p 9000:8080 \
+    -e DRY_RUN=true \
+    -e SECRET_KEY=abc123def456ghi789jkl012mno345 \
+    -e DASHBOARD_USERS_TABLE=dashboard-users \
+    -e AWS_REGION=us-east-1 \
+    --name lambda-local \
+    local-lambda
+  echo "✅ local-lambda is up on http://localhost:9000 (DRY_RUN)"
+
+  echo ""
+  echo "🔍 Testing POST /login with dry-run credentials…"
+  curl -s -XPOST http://localhost:9000/2015-03-31/functions/function/invocations \
+    -H "Content-Type: application/json" \
+    -d '{
+      "version":"2.0",
+      "routeKey":"POST /login",
+      "rawPath":"/login",
+      "rawQueryString":"",
+      "headers":{"content-type":"application/x-www-form-urlencoded"},
+      "requestContext":{"http":{"method":"POST","path":"/login","sourceIp":"127.0.0.1"}},
+      "body":"username=testuser@example.com&password=Passw0rd%21",
+      "isBase64Encoded":false
+    }' | jq .
+
+  echo ""
+  echo "✅ Local-only deployment complete. Container is running. Test manually with:"
+  echo "   curl -v -X POST http://localhost:9000/login -H \"Content-Type: application/x-www-form-urlencoded\" -d 'username=strngr12@gmail.com&password=Passw0rd!'"
+  echo "   (Use token from response for /dashboard)"
   exit 0  # Explicitly exit to skip AWS steps
 fi
 
 # —————————————————————————————————————————————————————————
-# No --local-only: do the full AWS deploy
+# No --local-only: do the full AWS deploy with teardown first
 # —————————————————————————————————————————————————————————
 
-echo "🚀 Starting full deployment…"
+echo "🚀 Starting full deployment with teardown…"
+
+# Perform complete teardown before deployment
+echo "🔥 Initiating teardown of existing resources…"
+"$(dirname "$0")/teardown_backend.sh"
+
+echo "🚀 Proceeding with deployment…"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES="$SCRIPT_DIR/modules"
@@ -90,17 +131,16 @@ VERSION_NUM=$(echo "$CURRENT_VERSION" | awk -F'.' '{print $1*100 + $2}' | bc)
 NEW_VERSION_NUM=$((VERSION_NUM + 1))
 NEW_VERSION=$(printf "%.2f" "$(echo "$NEW_VERSION_NUM/100" | bc -l)")
 
-# Update template.yml with new version
-sed -i.bak "s/^${VERSION_KEY}: .*/${VERSION_KEY}: Dashboard API Stack - v${NEW_VERSION} (SECRET_KEY updated)/" "$TEMPLATE_FILE" && rm -f "${TEMPLATE_FILE}.bak"
-echo "📝 Updated version in $TEMPLATE_FILE to v${NEW_VERSION}"
+# Generate a new SECRET_KEY securely and update template.yml
+{
+  SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null)
+  sed -i.bak "s/^${VERSION_KEY}: .*/${VERSION_KEY}: Dashboard API Stack - v${NEW_VERSION} (SECRET_KEY updated)/" "$TEMPLATE_FILE" && rm -f "${TEMPLATE_FILE}.bak"
+  sed -i.bak "s/SECRET_KEY: .*/SECRET_KEY: $SECRET_KEY/" "$TEMPLATE_FILE" && rm -f "${TEMPLATE_FILE}.bak"
+} > /dev/null 2>&1  # Suppress output
+unset SECRET_KEY  # Clear the variable after use
+echo "📝 Updated version in $TEMPLATE_FILE to v${NEW_VERSION} with new SECRET_KEY"
 
-# Check and manage resources
-echo "🔍 Checking existing resources..."
-LAMBDA_EXISTS=$(aws lambda get-function --function-name "$LAMBDA_NAME" --region us-east-1 2>/dev/null && echo "true" || echo "false")
-ROLE_EXISTS=$(aws iam get-role --role-name "$ROLE_NAME" --region us-east-1 2>/dev/null && echo "true" || echo "false")
-API_EXISTS=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME'].id" --output text --region us-east-1 | grep -q . && echo "true" || echo "false")
-
-# Run deployment modules based on existence and version
+# Run deployment modules
 for step in \
   01_package_lambda.sh \
   02_create_iam_role.sh \
@@ -112,60 +152,40 @@ for step in \
 do
   echo ""
   echo "🧩 Running module: $step"
-  if [ "$step" = "01_package_lambda.sh" ] || [ "$step" = "02_create_iam_role.sh" ] || [ "$step" = "03_deploy_lambda.sh" ]; then
-    if [ "$LAMBDA_EXISTS" = "true" ] || [ "$ROLE_EXISTS" = "true" ]; then
-      echo "ℹ️ $step skipped: Lambda or IAM role already exists"
-    else
-      . "$MODULES/$step"
-    fi
-  elif [ "$step" = "04_setup_api_gateway.sh" ] || [ "$step" = "05_wire_proxy_route.sh" ] || [ "$step" = "06_wire_public_proxy.sh" ] || [ "$step" = "07_deploy_api_gateway.sh" ]; then
-    if [ "$API_EXISTS" = "true" ]; then
-      # Check if API version or configuration needs update
-      CURRENT_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='$API_NAME']|[0].id" --output text --region us-east-1)
-      # Simplified update check (compare with template version or resource state)
-      if [ -n "$CURRENT_API_ID" ]; then
-        echo "ℹ️ API Gateway $CURRENT_API_ID exists, checking for updates..."
-        . "$MODULES/$step"  # Run to potentially update if changes detected
-      else
-        . "$MODULES/$step"
-      fi
-    else
-      . "$MODULES/$step"
-    fi
-  fi
+  . "$MODULES/$step"
 done
 
-# Update CloudFormation stack output with the new API ID if set
-if [ -n "${REST_API_ID:-}" ] && [ "$DRY_RUN" = "false" ]; then
-  echo "🔄 Updating CloudFormation stack output with new API ID: $REST_API_ID"
-  # Generate outputs.json dynamically
-  cat <<EOF > outputs.json
-  [
-    {
-      "OutputKey": "ApiEndpoint",
-      "OutputValue": "https://${REST_API_ID}.execute-api.us-east-1.amazonaws.com/Prod",
-      "Description": "Default execute-api endpoint"
-    }
-  ]
-  EOF
+# Update CloudFormation stack with the new version and force Lambda update
+if [ "$DRY_RUN" = "false" ]; then
+  echo "🔄 Updating CloudFormation stack with new version..."
+  # Use --no-fail-on-empty-changeset to allow updates with no changes
   aws cloudformation update-stack \
     --stack-name dashboard-prod \
-    --use-previous-template \
+    --template-body file://template.yml \
     --region us-east-1 \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --outputs file://outputs.json || {
-      echo "⚠️ Failed to update stack output, creating stack if it doesn't exist..."
-      aws cloudformation create-stack \
-        --stack-name dashboard-prod \
-        --template-body file://template.yml \
-        --region us-east-1 \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --outputs file://outputs.json
+    --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+    --no-fail-on-empty-changeset || {
+      echo "⚠️ Stack update failed, checking if stack exists..."
+      if aws cloudformation describe-stacks --stack-name dashboard-prod --region us-east-1 >/dev/null 2>&1; then
+        echo "ℹ️ Stack exists, attempting update again with full capabilities..."
+        aws cloudformation update-stack \
+          --stack-name dashboard-prod \
+          --template-body file://template.yml \
+          --region us-east-1 \
+          --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+          --no-fail-on-empty-changeset
+      else
+        echo "⚠️ Stack does not exist, creating new stack..."
+        aws cloudformation create-stack \
+          --stack-name dashboard-prod \
+          --template-body file://template.yml \
+          --region us-east-1 \
+          --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+      fi
     }
-  rm -f outputs.json
-  echo "✅ CloudFormation stack output updated or created."
+  echo "✅ CloudFormation stack updated or created."
 else
-  echo "⚠️ Skipping stack output update (DRY_RUN or REST_API_ID not set)."
+  echo "⚠️ Skipping stack update (DRY_RUN set)."
 fi
 
 echo ""
