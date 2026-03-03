@@ -225,6 +225,26 @@ def _cleanup_old_chats(project: str) -> list[str]:
 
 
 @mcp.tool()
+def cleanup_chats(project: str) -> str:
+    """Clean up chat history older than 14 days for a project.
+
+    Call this automatically:
+    - At the start of every new conversation
+    - When a conversation has been idle for 5+ minutes
+
+    Deletes only the oldest day's chats per invocation to avoid
+    emptying everything if the user was away for a while.
+
+    Args:
+        project: Project name (e.g. 'he-feeds-dinosaurs', 'chinaless', 'danieldow')
+    """
+    deleted = _cleanup_old_chats(project)
+    if deleted:
+        return f"Cleaned up {len(deleted)} old chat(s):\n" + "\n".join(deleted)
+    return "No chats older than 14 days found. Nothing to clean up."
+
+
+@mcp.tool()
 def save_chat(project: str, title: str, messages: str) -> str:
     """Save a chat conversation to the dashboard-chat-history DynamoDB table.
 
