@@ -5,7 +5,7 @@ import os
 import sys
 import logging
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -186,6 +186,43 @@ def download_manuscript(s3_key: str, local_path: str) -> str:
 
 # ── Chat History Tools ───────────────────────────────────────────────
 
+MAX_CHAT_DAYS = 14
+
+
+def _cleanup_old_chats(project: str) -> list[str]:
+    """Delete chats older than MAX_CHAT_DAYS, but only the oldest day at a time.
+
+    This prevents emptying everything if the user is away for weeks —
+    each save_chat call trims at most one day's worth of old chats.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_CHAT_DAYS)
+    cutoff_iso = cutoff.isoformat()
+
+    # Query all chats for the project
+    resp = chat_table.query(
+        KeyConditionExpression=Key("PK").eq(f"CHAT#{project}"),
+        ScanIndexForward=True,  # oldest first
+    )
+    items = resp.get("Items", [])
+    if not items:
+        return []
+
+    # Find items older than cutoff
+    old_items = [i for i in items if i.get("created_at", "") < cutoff_iso]
+    if not old_items:
+        return []
+
+    # Group by date (YYYY-MM-DD) and only delete the oldest day
+    oldest_date = old_items[0].get("created_at", "")[:10]
+    to_delete = [i for i in old_items if i.get("created_at", "")[:10] == oldest_date]
+
+    deleted = []
+    for item in to_delete:
+        chat_table.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+        deleted.append(f"  Deleted: {item.get('title', '(untitled)')} ({item.get('created_at', '')[:10]})")
+
+    return deleted
+
 
 @mcp.tool()
 def save_chat(project: str, title: str, messages: str) -> str:
@@ -211,7 +248,14 @@ def save_chat(project: str, title: str, messages: str) -> str:
         "created_at": timestamp,
         "word_count": len(messages.split()),
     })
-    return f"Chat saved: [{project}] {title} ({len(messages.split())} words)"
+
+    # Clean up chats older than 14 days (one oldest day per save)
+    deleted = _cleanup_old_chats(project)
+
+    result = f"Chat saved: [{project}] {title} ({len(messages.split())} words)"
+    if deleted:
+        result += f"\nCleaned up {len(deleted)} old chat(s):\n" + "\n".join(deleted)
+    return result
 
 
 @mcp.tool()
