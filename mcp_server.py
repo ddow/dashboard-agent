@@ -190,15 +190,12 @@ MAX_CHAT_DAYS = 14
 
 
 def _cleanup_old_chats(project: str) -> list[str]:
-    """Delete chats older than MAX_CHAT_DAYS, but only the oldest day at a time.
+    """Delete the oldest day's chats if more than MAX_CHAT_DAYS distinct days exist.
 
-    This prevents emptying everything if the user is away for weeks —
-    each save_chat call trims at most one day's worth of old chats.
+    Counts distinct calendar days that have chats. If more than 14,
+    deletes only the oldest day's chats. This avoids wiping everything
+    if the user was away — each invocation trims at most one day.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(days=MAX_CHAT_DAYS)
-    cutoff_iso = cutoff.isoformat()
-
-    # Query all chats for the project
     resp = chat_table.query(
         KeyConditionExpression=Key("PK").eq(f"CHAT#{project}"),
         ScanIndexForward=True,  # oldest first
@@ -207,19 +204,23 @@ def _cleanup_old_chats(project: str) -> list[str]:
     if not items:
         return []
 
-    # Find items older than cutoff
-    old_items = [i for i in items if i.get("created_at", "") < cutoff_iso]
-    if not old_items:
+    # Group items by calendar day
+    days: dict[str, list] = {}
+    for item in items:
+        day = item.get("created_at", "")[:10]
+        if day:
+            days.setdefault(day, []).append(item)
+
+    # Only clean up if we have more than 14 distinct days
+    if len(days) <= MAX_CHAT_DAYS:
         return []
 
-    # Group by date (YYYY-MM-DD) and only delete the oldest day
-    oldest_date = old_items[0].get("created_at", "")[:10]
-    to_delete = [i for i in old_items if i.get("created_at", "")[:10] == oldest_date]
-
+    # Delete the oldest day
+    oldest_day = sorted(days.keys())[0]
     deleted = []
-    for item in to_delete:
+    for item in days[oldest_day]:
         chat_table.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
-        deleted.append(f"  Deleted: {item.get('title', '(untitled)')} ({item.get('created_at', '')[:10]})")
+        deleted.append(f"  Deleted: {item.get('title', '(untitled)')} ({oldest_day})")
 
     return deleted
 
