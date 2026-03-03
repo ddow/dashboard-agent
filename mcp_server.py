@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import logging
+import tempfile
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -84,6 +85,59 @@ def upload_manuscript(local_path: str) -> str:
 
     # Upload new manuscript
     s3.upload_file(str(local), S3_BUCKET, new_key)
+
+    lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{new_key}"]
+    if archived:
+        lines.append("Archived previous versions:")
+        lines.extend(archived)
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def upload_manuscript_content(content: str, filename: str = "he-feeds-dinosaurs.md") -> str:
+    """Upload manuscript content directly to S3 (for use when file path is inaccessible).
+
+    Use this when the file is in a sandboxed/container environment and can't be
+    accessed by path. Read the file content first, then pass it here.
+
+    Archives the current version from files/latest/ to files/old/ first.
+
+    Args:
+        content: The full text content of the manuscript
+        filename: Filename to use (default: he-feeds-dinosaurs.md)
+    """
+    now = datetime.now(timezone.utc)
+    ts = now.strftime("%Y-%m-%d_%H-%M-%S")
+    ext = Path(filename).suffix or ".md"
+    stem = Path(filename).stem
+    new_key = f"files/latest/{ts}_{stem}{ext}"
+
+    # Archive current latest files
+    archived = []
+    try:
+        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="files/latest/")
+        for obj in resp.get("Contents", []):
+            src_key = obj["Key"]
+            fname = src_key.split("/")[-1]
+            archive_key = f"files/old/{fname}"
+            s3.copy_object(
+                Bucket=S3_BUCKET,
+                CopySource={"Bucket": S3_BUCKET, "Key": src_key},
+                Key=archive_key,
+            )
+            s3.delete_object(Bucket=S3_BUCKET, Key=src_key)
+            archived.append(f"  {src_key} -> {archive_key}")
+    except Exception as e:
+        logger.warning(f"Archive step issue (continuing): {e}")
+
+    # Write content to temp file and upload
+    with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    try:
+        s3.upload_file(tmp_path, S3_BUCKET, new_key)
+    finally:
+        os.unlink(tmp_path)
 
     lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{new_key}"]
     if archived:
