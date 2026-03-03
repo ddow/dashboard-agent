@@ -94,11 +94,75 @@ def upload_manuscript(local_path: str) -> str:
 
 
 @mcp.tool()
+def prepare_manuscript_upload(filename: str = "he-feeds-dinosaurs.md") -> str:
+    """Prepare S3 for a manuscript upload and return a pre-signed PUT URL.
+
+    PREFERRED method when the user drops a file into Claude Desktop chat.
+    This is much faster than upload_manuscript_content because the file
+    is uploaded directly via curl instead of passing content through tool params.
+
+    Steps:
+    1. Call this tool to archive current latest and get a pre-signed URL
+    2. Run the curl command in bash with the file path (e.g. /mnt/user-data/uploads/filename.md)
+
+    Archives the current version from files/latest/ to files/old/ first.
+
+    Args:
+        filename: Filename to use (default: he-feeds-dinosaurs.md)
+    """
+    now = datetime.now(timezone.utc)
+    ts = now.strftime("%Y-%m-%d_%H-%M-%S")
+    ext = Path(filename).suffix or ".md"
+    stem = Path(filename).stem
+    new_key = f"files/latest/{ts}_{stem}{ext}"
+
+    # Archive current latest files
+    archived = []
+    try:
+        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="files/latest/")
+        for obj in resp.get("Contents", []):
+            src_key = obj["Key"]
+            fname = src_key.split("/")[-1]
+            archive_key = f"files/old/{fname}"
+            s3.copy_object(
+                Bucket=S3_BUCKET,
+                CopySource={"Bucket": S3_BUCKET, "Key": src_key},
+                Key=archive_key,
+            )
+            s3.delete_object(Bucket=S3_BUCKET, Key=src_key)
+            archived.append(f"  {src_key} -> {archive_key}")
+    except Exception as e:
+        logger.warning(f"Archive step issue (continuing): {e}")
+
+    # Generate pre-signed PUT URL (valid for 10 minutes)
+    presigned_url = s3.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": S3_BUCKET, "Key": new_key, "ContentType": "text/markdown"},
+        ExpiresIn=600,
+    )
+
+    lines = [
+        "Ready for upload! Run this curl command with the file path:",
+        f'curl -X PUT -H "Content-Type: text/markdown" -T "<FILE_PATH>" "{presigned_url}"',
+        "",
+        f"S3 destination: s3://{S3_BUCKET}/{new_key}",
+        "URL expires in 10 minutes.",
+    ]
+    if archived:
+        lines.append("Archived previous versions:")
+        lines.extend(archived)
+    return "\n".join(lines)
+
+
+@mcp.tool()
 def upload_manuscript_content(content: str, filename: str = "he-feeds-dinosaurs.md") -> str:
     """Upload manuscript content directly to S3 (for use when file path is inaccessible).
 
     Use this when the file is in a sandboxed/container environment and can't be
     accessed by path. Read the file content first, then pass it here.
+
+    NOTE: This is SLOW for large files because all content passes through tool params.
+    Prefer prepare_manuscript_upload + curl for speed.
 
     Archives the current version from files/latest/ to files/old/ first.
 
