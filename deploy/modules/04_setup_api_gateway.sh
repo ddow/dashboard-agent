@@ -17,28 +17,19 @@ if [ "${DRY_RUN:-false}" = "true" ]; then
   echo "🧪 DRY RUN: Skipping: aws lambda get-function and API Gateway checks"
   REST_API_ID=""
 else
-  # Get the Lambda ARN
+  # Look up existing API Gateway by name
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --region us-east-1)
-  LAMBDA_ARN="arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:${LAMBDA_NAME}"
-  INVOCATION_ARN="arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${LAMBDA_ARN}/invocations"
+  INVOCATION_ARN="arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:${ACCOUNT_ID}:function:${LAMBDA_NAME}/invocations"
 
-  # Query existing APIs to find one integrated with this Lambda
   REST_API_ID=$(aws apigateway get-rest-apis \
-    --query "items[].[id, name, endpointConfiguration.types, disableExecuteApiEndpoint, createdDate]" \
+    --query "items[?name=='${API_NAME}'].id | [0]" \
     --output text \
-    --region us-east-1 | while read -r id name types disabled date; do
-      if [ "$disabled" != "true" ] && [ "${types}" = "[EDGE]" ]; then
-        # Check integrations for this API
-        resources=$(aws apigateway get-resources --rest-api-id "$id" --query "items[].id" --output text --region us-east-1)
-        for resource in $resources; do
-          integration=$(aws apigateway get-integration --rest-api-id "$id" --resource-id "$resource" --http-method POST --region us-east-1 2>/dev/null)
-          if [ -n "$integration" ] && echo "$integration" | grep -q "$INVOCATION_ARN"; then
-            echo "$id"
-            break 2
-          fi
-        done
-      fi
-    done | head -n 1)
+    --region us-east-1)
+
+  # Normalize "None" (no match) to empty string
+  if [ "$REST_API_ID" = "None" ]; then
+    REST_API_ID=""
+  fi
 fi
 export REST_API_ID
 

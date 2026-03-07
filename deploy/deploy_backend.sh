@@ -85,7 +85,7 @@ for step in \
 do
   echo ""
   echo "🧩 Running module: $step"
-  bash "$MODULES/$step"
+  source "$MODULES/$step"
 done
 
 echo ""
