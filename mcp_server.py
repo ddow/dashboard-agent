@@ -43,14 +43,41 @@ def _json(obj) -> str:
 # ── Manuscript Tools ─────────────────────────────────────────────────
 
 
+BOOK_KEY = "files/book/he-feeds-dinosaurs.html"
+BOOK_ARCHIVE_PREFIX = "files/book/old/"
+
+
+def _archive_current_book() -> list[str]:
+    """Archive the current book file to files/book/old/ with a timestamp."""
+    archived = []
+    try:
+        s3.head_object(Bucket=S3_BUCKET, Key=BOOK_KEY)
+    except Exception:
+        return archived  # No current file to archive
+
+    now = datetime.now(timezone.utc)
+    ts = now.strftime("%Y%m%d_%H%M%S")
+    archive_key = f"{BOOK_ARCHIVE_PREFIX}he-feeds-dinosaurs_{ts}.html"
+    try:
+        s3.copy_object(
+            Bucket=S3_BUCKET,
+            CopySource={"Bucket": S3_BUCKET, "Key": BOOK_KEY},
+            Key=archive_key,
+        )
+        archived.append(f"  {BOOK_KEY} -> {archive_key}")
+    except Exception as e:
+        logger.warning(f"Archive step issue (continuing): {e}")
+    return archived
+
+
 @mcp.tool()
 def upload_manuscript(local_path: str) -> str:
     """Upload a new manuscript to S3, archiving the current version first.
 
-    Copies current file from files/latest/ to files/old/, then uploads
-    the new version to files/latest/ in the diagnosingelijah.com S3 bucket.
+    Archives current files/book/he-feeds-dinosaurs.html to files/book/old/,
+    then overwrites it with the new version.
 
-    NEVER deletes anything from files/old/ — it's a permanent archive.
+    NEVER deletes anything from files/book/old/ — it's a permanent archive.
 
     Args:
         local_path: Absolute path to the manuscript file on the local filesystem
@@ -61,42 +88,20 @@ def upload_manuscript(local_path: str) -> str:
     if not local.is_file():
         return f"Error: Not a file: {local}"
 
-    # Generate timestamped filename
-    now = datetime.now(timezone.utc)
-    ts = now.strftime("%Y-%m-%d_%H-%M-%S")
-    ext = local.suffix or ".md"
-    new_key = f"files/latest/{ts}_he-feeds-dinosaurs{ext}"
+    archived = _archive_current_book()
 
-    # Archive current latest files
-    archived = []
-    try:
-        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="files/latest/")
-        for obj in resp.get("Contents", []):
-            src_key = obj["Key"]
-            filename = src_key.split("/")[-1]
-            archive_key = f"files/old/{filename}"
-            s3.copy_object(
-                Bucket=S3_BUCKET,
-                CopySource={"Bucket": S3_BUCKET, "Key": src_key},
-                Key=archive_key,
-            )
-            s3.delete_object(Bucket=S3_BUCKET, Key=src_key)
-            archived.append(f"  {src_key} -> {archive_key}")
-    except Exception as e:
-        logger.warning(f"Archive step issue (continuing): {e}")
+    # Upload new manuscript to the canonical location
+    s3.upload_file(str(local), S3_BUCKET, BOOK_KEY)
 
-    # Upload new manuscript
-    s3.upload_file(str(local), S3_BUCKET, new_key)
-
-    lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{new_key}"]
+    lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{BOOK_KEY}"]
     if archived:
-        lines.append("Archived previous versions:")
+        lines.append("Archived previous version:")
         lines.extend(archived)
     return "\n".join(lines)
 
 
 @mcp.tool()
-def prepare_manuscript_upload(filename: str = "he-feeds-dinosaurs.md") -> str:
+def prepare_manuscript_upload(filename: str = "he-feeds-dinosaurs.html") -> str:
     """Prepare S3 for a manuscript upload and return a pre-signed PUT URL.
 
     PREFERRED method when the user drops a file into Claude Desktop chat.
@@ -104,60 +109,38 @@ def prepare_manuscript_upload(filename: str = "he-feeds-dinosaurs.md") -> str:
     is uploaded directly via curl instead of passing content through tool params.
 
     Steps:
-    1. Call this tool to archive current latest and get a pre-signed URL
-    2. Run the curl command in bash with the file path (e.g. /mnt/user-data/uploads/filename.md)
+    1. Call this tool to archive current book and get a pre-signed URL
+    2. Run the curl command in bash with the file path (e.g. /mnt/user-data/uploads/filename.html)
 
-    Archives the current version from files/latest/ to files/old/ first.
+    Archives the current files/book/he-feeds-dinosaurs.html to files/book/old/ first.
 
     Args:
-        filename: Filename to use (default: he-feeds-dinosaurs.md)
+        filename: Filename to use (default: he-feeds-dinosaurs.html)
     """
-    now = datetime.now(timezone.utc)
-    ts = now.strftime("%Y-%m-%d_%H-%M-%S")
-    ext = Path(filename).suffix or ".md"
-    stem = Path(filename).stem
-    new_key = f"files/latest/{ts}_{stem}{ext}"
+    archived = _archive_current_book()
 
-    # Archive current latest files
-    archived = []
-    try:
-        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="files/latest/")
-        for obj in resp.get("Contents", []):
-            src_key = obj["Key"]
-            fname = src_key.split("/")[-1]
-            archive_key = f"files/old/{fname}"
-            s3.copy_object(
-                Bucket=S3_BUCKET,
-                CopySource={"Bucket": S3_BUCKET, "Key": src_key},
-                Key=archive_key,
-            )
-            s3.delete_object(Bucket=S3_BUCKET, Key=src_key)
-            archived.append(f"  {src_key} -> {archive_key}")
-    except Exception as e:
-        logger.warning(f"Archive step issue (continuing): {e}")
-
-    # Generate pre-signed PUT URL (valid for 10 minutes)
+    # Generate pre-signed PUT URL for the canonical location (valid for 10 minutes)
     presigned_url = s3.generate_presigned_url(
         "put_object",
-        Params={"Bucket": S3_BUCKET, "Key": new_key, "ContentType": "text/markdown"},
+        Params={"Bucket": S3_BUCKET, "Key": BOOK_KEY, "ContentType": "text/html"},
         ExpiresIn=600,
     )
 
     lines = [
         "Ready for upload! Run this curl command with the file path:",
-        f'curl -X PUT -H "Content-Type: text/markdown" -T "<FILE_PATH>" "{presigned_url}"',
+        f'curl -X PUT -H "Content-Type: text/html" -T "<FILE_PATH>" "{presigned_url}"',
         "",
-        f"S3 destination: s3://{S3_BUCKET}/{new_key}",
+        f"S3 destination: s3://{S3_BUCKET}/{BOOK_KEY}",
         "URL expires in 10 minutes.",
     ]
     if archived:
-        lines.append("Archived previous versions:")
+        lines.append("Archived previous version:")
         lines.extend(archived)
     return "\n".join(lines)
 
 
 @mcp.tool()
-def upload_manuscript_content(content: str, filename: str = "he-feeds-dinosaurs.md") -> str:
+def upload_manuscript_content(content: str, filename: str = "he-feeds-dinosaurs.html") -> str:
     """Upload manuscript content directly to S3 (for use when file path is inaccessible).
 
     Use this when the file is in a sandboxed/container environment and can't be
@@ -166,70 +149,64 @@ def upload_manuscript_content(content: str, filename: str = "he-feeds-dinosaurs.
     NOTE: This is SLOW for large files because all content passes through tool params.
     Prefer prepare_manuscript_upload + curl for speed.
 
-    Archives the current version from files/latest/ to files/old/ first.
+    Archives the current files/book/he-feeds-dinosaurs.html to files/book/old/ first.
 
     Args:
         content: The full text content of the manuscript
-        filename: Filename to use (default: he-feeds-dinosaurs.md)
+        filename: Filename to use (default: he-feeds-dinosaurs.html)
     """
-    now = datetime.now(timezone.utc)
-    ts = now.strftime("%Y-%m-%d_%H-%M-%S")
-    ext = Path(filename).suffix or ".md"
-    stem = Path(filename).stem
-    new_key = f"files/latest/{ts}_{stem}{ext}"
+    archived = _archive_current_book()
 
-    # Archive current latest files
-    archived = []
-    try:
-        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix="files/latest/")
-        for obj in resp.get("Contents", []):
-            src_key = obj["Key"]
-            fname = src_key.split("/")[-1]
-            archive_key = f"files/old/{fname}"
-            s3.copy_object(
-                Bucket=S3_BUCKET,
-                CopySource={"Bucket": S3_BUCKET, "Key": src_key},
-                Key=archive_key,
-            )
-            s3.delete_object(Bucket=S3_BUCKET, Key=src_key)
-            archived.append(f"  {src_key} -> {archive_key}")
-    except Exception as e:
-        logger.warning(f"Archive step issue (continuing): {e}")
-
-    # Write content to temp file and upload
-    with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as tmp:
+    # Write content to temp file and upload to canonical location
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
     try:
-        s3.upload_file(tmp_path, S3_BUCKET, new_key)
+        s3.upload_file(tmp_path, S3_BUCKET, BOOK_KEY)
     finally:
         os.unlink(tmp_path)
 
-    lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{new_key}"]
+    lines = [f"Manuscript uploaded successfully!", f"  New: s3://{S3_BUCKET}/{BOOK_KEY}"]
     if archived:
-        lines.append("Archived previous versions:")
+        lines.append("Archived previous version:")
         lines.extend(archived)
     return "\n".join(lines)
 
 
 @mcp.tool()
 def list_manuscripts() -> str:
-    """List all manuscripts in S3 — both current (files/latest/) and archived (files/old/).
+    """List all manuscripts in S3 — current book and archived backups.
+
+    Current: files/book/he-feeds-dinosaurs.html (canonical source of truth)
+    Archived: files/book/old/ (auto-backups from every save)
 
     Returns file keys, sizes, and last modified dates.
     """
     sections = []
 
-    for prefix, label in [("files/latest/", "Current (latest)"), ("files/old/", "Archived (old)")]:
-        resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
-        objects = resp.get("Contents", [])
-        if objects:
-            sections.append(f"\n## {label}")
-            for obj in sorted(objects, key=lambda x: x["LastModified"], reverse=True):
-                key = obj["Key"]
-                size_kb = obj["Size"] / 1024
-                modified = obj["LastModified"].strftime("%Y-%m-%d %H:%M")
-                sections.append(f"  {key}  ({size_kb:.0f} KB, {modified})")
+    # Current book file
+    try:
+        head = s3.head_object(Bucket=S3_BUCKET, Key=BOOK_KEY)
+        size_kb = head["ContentLength"] / 1024
+        modified = head["LastModified"].strftime("%Y-%m-%d %H:%M")
+        sections.append(f"\n## Current (source of truth)")
+        sections.append(f"  {BOOK_KEY}  ({size_kb:.0f} KB, {modified})")
+    except Exception:
+        sections.append("\n## Current (source of truth)")
+        sections.append("  (no current manuscript found)")
+
+    # Archived backups
+    resp = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=BOOK_ARCHIVE_PREFIX)
+    objects = [o for o in resp.get("Contents", []) if o["Key"] != BOOK_ARCHIVE_PREFIX]
+    if objects:
+        sections.append(f"\n## Archived backups ({len(objects)} versions)")
+        for obj in sorted(objects, key=lambda x: x["LastModified"], reverse=True)[:20]:
+            key = obj["Key"]
+            size_kb = obj["Size"] / 1024
+            modified = obj["LastModified"].strftime("%Y-%m-%d %H:%M")
+            sections.append(f"  {key}  ({size_kb:.0f} KB, {modified})")
+        if len(objects) > 20:
+            sections.append(f"  ... and {len(objects) - 20} more")
 
     if not sections:
         return "No manuscripts found in S3."
@@ -241,7 +218,7 @@ def download_manuscript(s3_key: str, local_path: str) -> str:
     """Download a manuscript from S3 to the local filesystem.
 
     Args:
-        s3_key: The S3 key (e.g. 'files/latest/2026-03-02_he-feeds-dinosaurs.md')
+        s3_key: The S3 key (e.g. 'files/book/he-feeds-dinosaurs.html')
         local_path: Local path to save the file to
     """
     local = Path(local_path).expanduser().resolve()
